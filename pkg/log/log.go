@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -26,6 +27,10 @@ const (
 	colorGray    = 37
 	colorMagenta = 35 // 添加紫色用于时间戳
 	colorCyan    = 36 // 添加青色用于调用信息
+
+	// 修改字段显示的颜色
+	colorFieldKey   = 36 // 青色用于字段名
+	colorFieldValue = 33 // 黄色用于字段值
 )
 
 func init() {
@@ -80,16 +85,87 @@ func (f *customTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		levelColor = colorGray
 	}
 
-	// 构建带颜色的消息
-	// \x1b[0m 用于重置颜色
-	msg := fmt.Sprintf("\x1b[%dm%s\x1b[0m [\x1b[%dm%s\x1b[0m] \x1b[%dm%s\x1b[0m %s\n",
+	// 构建额外字段的字符串
+	var fields string
+	if len(entry.Data) > 0 {
+		pairs := make([]string, 0, len(entry.Data))
+		for k, v := range entry.Data {
+			if k != "caller" { // 跳过caller字段，因为已经单独处理
+				formattedValue := formatValue(v)
+				pairs = append(pairs, fmt.Sprintf("\x1b[%dm%v\x1b[0m=\x1b[%dm%v\x1b[0m",
+					colorFieldKey, k, // 字段名使用青色
+					colorFieldValue, formattedValue)) // 字段值使用黄色
+			}
+		}
+		if len(pairs) > 0 {
+			fields = " " + strings.Join(pairs, " ")
+		}
+	}
+
+	// 修改消息格式，添加字段信息
+	msg := fmt.Sprintf("\x1b[%dm%s\x1b[0m [\x1b[%dm%s\x1b[0m] \x1b[%dm%s\x1b[0m %s%s\n",
 		levelColor, level, // 日志级别颜色
 		colorMagenta, timestamp, // 时间戳使用紫色
 		colorCyan, caller, // 调用信息使用青色
 		entry.Message,
+		fields, // 添加额外字段
 	)
 
 	return []byte(msg), nil
+}
+
+// 添加新的辅助函数来格式化值
+func formatValue(v interface{}) string {
+	if v == nil {
+		return "nil"
+	}
+
+	// 使用反射获取值的类型信息
+	val := reflect.ValueOf(v)
+	typ := val.Type()
+
+	// 处理指针类型
+	if val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return "nil"
+		}
+		val = val.Elem()
+		typ = val.Type()
+	}
+
+	switch val.Kind() {
+	case reflect.Struct:
+		// 构建结构体字段
+		fields := make([]string, 0, val.NumField())
+		for i := 0; i < val.NumField(); i++ {
+			field := typ.Field(i)
+			// 获取json标签名，如果没有则使用字段名
+			fieldName := field.Tag.Get("json")
+			if fieldName == "" {
+				fieldName = field.Name
+			}
+			// 去掉json标签中的omitempty等选项
+			fieldName = strings.Split(fieldName, ",")[0]
+			fields = append(fields, fmt.Sprintf("%s:%v", fieldName, val.Field(i).Interface()))
+		}
+		return "{" + strings.Join(fields, " ") + "}"
+	case reflect.Map:
+		// 处理map类型
+		pairs := make([]string, 0, val.Len())
+		for _, k := range val.MapKeys() {
+			pairs = append(pairs, fmt.Sprintf("%v:%v", k.Interface(), val.MapIndex(k).Interface()))
+		}
+		return "{" + strings.Join(pairs, " ") + "}"
+	case reflect.Slice, reflect.Array:
+		// 处理切片和数组
+		elements := make([]string, val.Len())
+		for i := 0; i < val.Len(); i++ {
+			elements[i] = fmt.Sprintf("%v", val.Index(i).Interface())
+		}
+		return "[" + strings.Join(elements, " ") + "]"
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 func SetLogFormat(log *logrus.Logger, format string) {

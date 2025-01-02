@@ -4,41 +4,63 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
-	"net"
+
 	"time"
 
+	"github.com/Covsj/gokit/pkg/log"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message/mail"
 )
 
-// ConnectToIMAP 登录到IMAP服务器并返回客户端连接。
-func ConnectToIMAP(username, password string) (*client.Client, error) {
-	server := "imap.mail.ru:993"
-	dialer := &net.Dialer{Timeout: 3 * time.Second}
-	c, err := client.DialWithDialerTLS(dialer, server, nil)
-	if err != nil {
-		log.Printf("Unable to establish TLS connection: %v", err)
-		c, err = client.DialWithDialer(dialer, server) // Unencrypted login
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if err = c.Login(username, password); err != nil {
-		log.Printf("IMAP login failed: %v", err)
-		return nil, err
-	}
-
-	return c, nil
+// IMAPProvider 定义IMAP服务提供者接口
+type IMAPProvider interface {
+	GetServer() string
+	GetTimeout() time.Duration
 }
 
-// FetchLatestIMAPEmails 从IMAP服务器获取最新的电子邮件。
-func FetchLatestIMAPEmails(c *client.Client, numEmails int) ([]IMAPDetail, error) {
+// BaseIMAPClient 基础IMAP客户端结构体
+type BaseIMAPClient struct {
+	client   *client.Client
+	provider IMAPProvider
+}
 
+// NewBaseIMAPClient 创建新的基础IMAP客户端
+func NewBaseIMAPClient(provider IMAPProvider) *BaseIMAPClient {
+	return &BaseIMAPClient{
+		provider: provider,
+	}
+}
+
+// Connect 连接到IMAP服务器
+func (b *BaseIMAPClient) Connect(username, password string) error {
+	server := b.provider.GetServer()
+	var err error
+	var c *client.Client
+	for i := 0; i <= 5; i++ {
+		c, err = client.DialTLS(server, nil)
+		if err != nil {
+			log.ErrorF("Unable to establish TLS connection,server:%s ,error:%v", server, err)
+			continue
+		}
+
+		if err = c.Login(username, password); err != nil {
+			log.ErrorF("IMAP login failed: %v", err)
+			continue
+		}
+	}
+	if err != nil {
+		return err
+	}
+	b.client = c
+	return nil
+}
+
+// FetchEmails 获取邮件的基础方法
+func (b *BaseIMAPClient) FetchEmails(numEmails int) ([]IMAPDetail, error) {
 	var emails []IMAPDetail
-	mbox, err := c.Select("INBOX", false)
+
+	mbox, err := b.client.Select("INBOX", false)
 	if err != nil {
 		return emails, fmt.Errorf("failed to select INBOX: %v", err)
 	}
@@ -57,7 +79,7 @@ func FetchLatestIMAPEmails(c *client.Client, numEmails int) ([]IMAPDetail, error
 	messages := make(chan *imap.Message, numEmails)
 	done := make(chan error, 1)
 	go func() {
-		done <- c.Fetch(seqset, []imap.FetchItem{imap.FetchEnvelope, imap.FetchRFC822}, messages)
+		done <- b.client.Fetch(seqset, []imap.FetchItem{imap.FetchEnvelope, imap.FetchRFC822}, messages)
 	}()
 
 	for msg := range messages {
@@ -80,7 +102,16 @@ func FetchLatestIMAPEmails(c *client.Client, numEmails int) ([]IMAPDetail, error
 	return emails, nil
 }
 
-// ParseEmailBodyAndAttachments 解析电子邮件主体和附件。
+// Close 关闭IMAP连接
+func (b *BaseIMAPClient) Close() error {
+	if b.client != nil {
+		b.client.Logout()
+		return b.client.Close()
+	}
+	return nil
+}
+
+// ParseEmailBodyAndAttachments 解析邮件内容和附件
 func ParseEmailBodyAndAttachments(mr *mail.Reader) (string, map[string][]byte) {
 	var body string
 	attachments := make(map[string][]byte)
@@ -91,7 +122,7 @@ func ParseEmailBodyAndAttachments(mr *mail.Reader) (string, map[string][]byte) {
 			break
 		}
 		if err != nil {
-			log.Println("Error reading next part:", err)
+			log.ErrorF("Error reading next part: %s", err.Error())
 			break
 		}
 

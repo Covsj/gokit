@@ -6,9 +6,9 @@ import (
 )
 
 func TestHttp(t *testing.T) {
-	resp, err := DoCycleTLSRequest(&ReqOpt{
+	resp, err := DoRequest(&RequestOptions{
 		Method: "GET",
-		Url:    "https://gmgn.ai/api/v1/gas_price/eth",
+		URL:    "https://gmgn.ai/defi/quotation/v1/signals?size=10&better=true",
 	})
 	fmt.Println(resp, err)
 }

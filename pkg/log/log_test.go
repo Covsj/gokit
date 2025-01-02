@@ -1,26 +1,41 @@
 package log
 
 import (
-	"errors"
 	"testing"
 )
 
-func TestLogger(t *testing.T) {
-	// 测试 JSON 格式（默认）
-	Debug("这是一条调试日志")
-	Info("这是一条信息日志")
-	Warn("这是一条警告日志")
-	Error("这是一条错误日志")
+type User struct {
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
 
-	// 测试文本格式
-	Debug("这是一条文本格式的调试日志")
-	Info("这是一条文本格式的信息日志")
-	Warn("这是一条文本格式的警告日志")
-	Error("这是一条文本格式的错误日志")
+func TestLogger(t *testing.T) {
+	// 测试带字段的日志
+	Info("用户登录", "用户ID", "12345", "IP", "192.168.1.1",
+		"struct", User{Name: "John", Age: 30},
+		"map", map[string]interface{}{"name": "John", "age": 30},
+		"slice", []string{"a", "b", "c"},
+		"array", [3]string{"a", "b", "c"},
+		"int", 123,
+		"float", 123.456,
+		"bool", true,
+		"nil", nil,
+	)
+
+	// 测试多个字段
+	Warn("系统警告",
+		"模块", "认证服务",
+		"错误码", "AUTH001",
+		"详情", "密码尝试次数过多",
+	)
 
 	// 测试格式化日志
-	DebugF("格式化的调试日志: %s", "debug")
-	InfoF("格式化的信息日志: %d", 1)
-	WarnF("格式化的警告日志: %v", true)
-	ErrorF("格式化的错误日志: %v", errors.New("test error"))
+	InfoF("用户 %s 执行了 %s 操作", "admin", "删除文件")
+
+	// 测试错误日志
+	Error("操作失败",
+		"错误类型", "数据库错误",
+		"表名", "users",
+		"SQL", "SELECT * FROM users",
+	)
 }

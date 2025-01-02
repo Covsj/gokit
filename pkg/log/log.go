@@ -1,9 +1,9 @@
 package log
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -120,52 +120,34 @@ func formatValue(v interface{}) string {
 		return "nil"
 	}
 
-	// 使用反射获取值的类型信息
-	val := reflect.ValueOf(v)
-	typ := val.Type()
-
-	// 处理指针类型
-	if val.Kind() == reflect.Ptr {
-		if val.IsNil() {
-			return "nil"
-		}
-		val = val.Elem()
-		typ = val.Type()
+	// 特殊处理 error 类型
+	if err, ok := v.(error); ok {
+		return err.Error()
 	}
 
-	switch val.Kind() {
-	case reflect.Struct:
-		// 构建结构体字段
-		fields := make([]string, 0, val.NumField())
-		for i := 0; i < val.NumField(); i++ {
-			field := typ.Field(i)
-			// 获取json标签名，如果没有则使用字段名
-			fieldName := field.Tag.Get("json")
-			if fieldName == "" {
-				fieldName = field.Name
-			}
-			// 去掉json标签中的omitempty等选项
-			fieldName = strings.Split(fieldName, ",")[0]
-			fields = append(fields, fmt.Sprintf("%s:%v", fieldName, val.Field(i).Interface()))
-		}
-		return "{" + strings.Join(fields, " ") + "}"
-	case reflect.Map:
-		// 处理map类型
-		pairs := make([]string, 0, val.Len())
-		for _, k := range val.MapKeys() {
-			pairs = append(pairs, fmt.Sprintf("%v:%v", k.Interface(), val.MapIndex(k).Interface()))
-		}
-		return "{" + strings.Join(pairs, " ") + "}"
-	case reflect.Slice, reflect.Array:
-		// 处理切片和数组
-		elements := make([]string, val.Len())
-		for i := 0; i < val.Len(); i++ {
-			elements[i] = fmt.Sprintf("%v", val.Index(i).Interface())
-		}
-		return "[" + strings.Join(elements, " ") + "]"
-	default:
+	// 处理 fmt.Stringer 接口
+	if s, ok := v.(fmt.Stringer); ok {
+		return s.String()
+	}
+
+	// 对基本类型直接使用 fmt.Sprint
+	switch v.(type) {
+	case string, bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+		return fmt.Sprint(v)
+	}
+
+	// 对复杂类型使用 json 序列化
+	jsonBytes, err := json.Marshal(v)
+	if err != nil {
 		return fmt.Sprintf("%v", v)
 	}
+	
+	// 如果是简单的字符串，去掉多余的引号
+	str := string(jsonBytes)
+	if len(str) >= 2 && str[0] == '"' && str[len(str)-1] == '"' {
+		str = str[1 : len(str)-1]
+	}
+	return str
 }
 
 func SetLogFormat(log *logrus.Logger, format string) {

@@ -8,11 +8,11 @@ import (
 
 func request(uri string, solverRequest *Request) (*Response, error) {
 	capResponse := &Response{}
-	_, err := ihttp.DoRequest(&ihttp.ReqOpt{
-		Url:     fmt.Sprintf("%s%s", ApiHost, uri),
+	_, err := ihttp.DoRequest(&ihttp.RequestOptions{
+		URL:     fmt.Sprintf("%s%s", ApiHost, uri),
 		Body:    solverRequest,
 		Headers: map[string]string{"Content-Type": "application/json"},
-		RespOut: capResponse,
+		ResponseOut: capResponse,
 	})
 
 	if err != nil {

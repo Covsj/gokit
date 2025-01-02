@@ -4,21 +4,16 @@ go 1.23.1
 
 require (
 	gitee.com/golang-module/dongle v0.2.8
-	github.com/Covsj/goTool v1.1.10
-	github.com/Danny-Dasilva/CycleTLS/cycletls v1.0.26
+	github.com/chenzhijie/go-web3 v0.0.0-20241004101201-e508ccdb37f7
 	github.com/emersion/go-imap v1.2.1
 	github.com/emersion/go-message v0.18.1
 	github.com/ethereum/go-ethereum v1.14.12
 	github.com/imroc/req/v3 v3.49.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sirupsen/logrus v1.9.3
-	go.uber.org/zap v1.27.0
-	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/Danny-Dasilva/fhttp v0.0.0-20240217042913-eeeb0b347ce1 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
@@ -53,8 +48,9 @@ require (
 	github.com/supranational/blst v0.3.13 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasthttp v1.56.0 // indirect
 	go.uber.org/mock v0.5.0 // indirect
-	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/exp v0.0.0-20241215155358-4a5509556b9e // indirect
 	golang.org/x/mod v0.22.0 // indirect
@@ -63,6 +59,5 @@ require (
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/tools v0.28.0 // indirect
-	h12.io/socks v1.0.3 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )

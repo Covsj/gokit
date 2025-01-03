@@ -33,4 +33,3 @@ func FromDecimals(value *big.Int, decimals int64) *big.Float {
 func ToDecimals(value uint64, decimals int64) *big.Int {
 	return utils.NewUtils().ToDecimals(value, decimals)
 }
-

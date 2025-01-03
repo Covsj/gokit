@@ -20,8 +20,7 @@ func TestContract(t *testing.T) {
 
 	allowance := contract.Allowance("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
 	log.Info("测试Allowance", "Allowance", FromDecimals(allowance, int64(decimals)))
-	
+
 	balance := contract.BalanceOf("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")
 	log.Info("测试BalanceOf", "BalanceOf", FromDecimals(balance, int64(decimals)))
 }
-

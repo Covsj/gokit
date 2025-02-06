@@ -12,3 +12,4 @@ cmd/
 .DS_Store
 vscode/
 *.log
+*key*

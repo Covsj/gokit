@@ -22,7 +22,7 @@ func NewCaesarUtil(offsetFunc func(str string) int, stableIndexFunc func(str str
 	if stableIndexFunc == nil {
 		stableIndexFunc = func(str string) map[int]bool {
 			res := map[int]bool{}
-			for i, _ := range str {
+			for i := range str {
 				if i != 0 && i != 5 && i%3 == 0 {
 					res[i] = true
 				}

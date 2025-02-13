@@ -7,20 +7,20 @@ import (
 )
 
 func HexEncode(encodeStr interface{}) dongle.Encoder {
-	switch encodeStr.(type) {
+	switch v := encodeStr.(type) {
 	case []byte:
-		return dongle.Encode.FromBytes(encodeStr.([]byte)).ByHex()
+		return dongle.Encode.FromBytes(v).ByHex()
 	default:
-		return dongle.Encode.FromString(encodeStr.(string)).ByHex()
+		return dongle.Encode.FromString(v.(string)).ByHex()
 	}
 }
 
 func HexDecode(decodeStr interface{}) dongle.Decoder {
-	switch decodeStr.(type) {
+	switch v := decodeStr.(type) {
 	case []byte:
-		return dongle.Decode.FromBytes(decodeStr.([]byte)).ByHex()
+		return dongle.Decode.FromBytes(v).ByHex()
 	default:
-		return dongle.Decode.FromString(decodeStr.(string)).ByHex()
+		return dongle.Decode.FromString(v.(string)).ByHex()
 	}
 }
 

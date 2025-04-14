@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Covsj/gokit/pkg/log"
+	log "github.com/Covsj/gokit/pkg/ilog"
 )
 
 var capSolver = &CapSolver{ApiKey: ""}

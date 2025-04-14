@@ -3,7 +3,7 @@ package evm
 import (
 	"testing"
 
-	"github.com/Covsj/gokit/pkg/log"
+	log "github.com/Covsj/gokit/pkg/ilog"
 )
 
 func TestContract(t *testing.T) {

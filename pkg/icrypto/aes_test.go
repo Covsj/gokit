@@ -3,7 +3,7 @@ package icrypto
 import (
 	"testing"
 
-	"github.com/Covsj/gokit/pkg/log"
+	log "github.com/Covsj/gokit/pkg/ilog"
 )
 
 func TestAes(t *testing.T) {

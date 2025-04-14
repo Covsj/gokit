@@ -3,7 +3,7 @@ package evm
 import (
 	"math/big"
 
-	"github.com/Covsj/gokit/pkg/log"
+	log "github.com/Covsj/gokit/pkg/ilog"
 	"github.com/chenzhijie/go-web3"
 	"github.com/chenzhijie/go-web3/eth"
 	"github.com/chenzhijie/go-web3/types"

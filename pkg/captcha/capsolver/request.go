@@ -8,7 +8,7 @@ import (
 
 func request(uri string, solverRequest *Request) (*Response, error) {
 	capResponse := &Response{}
-	_, err := ihttp.DoRequest(&ihttp.RequestOptions{
+	_, err := ihttp.DoRequest(&ihttp.Options{
 		URL:     fmt.Sprintf("%s%s", ApiHost, uri),
 		Body:    solverRequest,
 		Headers: map[string]string{"Content-Type": "application/json"},

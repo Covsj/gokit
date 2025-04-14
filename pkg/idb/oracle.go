@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Covsj/gokit/pkg/log"
+	log "github.com/Covsj/gokit/pkg/ilog"
 	_ "github.com/sijms/go-ora/v2"
 )
 
@@ -280,8 +280,8 @@ func (o *OracleDB) TruncateTable(ctx context.Context, tableName string) error {
 // GetTableColumns 获取表的列信息
 func (o *OracleDB) GetTableColumns(ctx context.Context, tableName string) ([]string, error) {
 	query := `
-		SELECT column_name 
-		FROM user_tab_columns 
+		SELECT column_name
+		FROM user_tab_columns
 		WHERE table_name = UPPER(:v1)
 		ORDER BY column_id`
 
@@ -400,10 +400,10 @@ func NewSQLTemplate(tableName string) *SQLTemplate {
 		// 修改分页查询模板，使用正确的Oracle分页语法
 		SelectWithPage: fmt.Sprintf(`
 			SELECT a.* FROM (
-				SELECT t.*, ROWNUM AS rn 
+				SELECT t.*, ROWNUM AS rn
 				FROM (
-					SELECT t.* 
-					FROM %s t 
+					SELECT t.*
+					FROM %s t
 					ORDER BY t.id
 				) t WHERE ROWNUM <= :page_end
 			) a WHERE rn > :page_start`, tableName),
@@ -464,7 +464,7 @@ func (o *OracleDB) QueryPage(ctx context.Context, dest interface{}, baseSQL stri
 	// 构建分页SQL，修改为不返回RN列
 	pageSQL := fmt.Sprintf(`
 		SELECT a.* FROM (
-			SELECT t.*, ROWNUM AS rn 
+			SELECT t.*, ROWNUM AS rn
 			FROM (
 				%s%s
 			) t WHERE ROWNUM <= :page_end

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Covsj/gokit/pkg/log"
+	log "github.com/Covsj/gokit/pkg/ilog"
 )
 
 // 测试配置，根据实际环境修改
@@ -141,9 +141,9 @@ func TestCRUD(t *testing.T) {
 		)
 
 		err = db.QueryRowContext(ctx, `
-			SELECT name, age, birth_date, created_at, updated_at, 
+			SELECT name, age, birth_date, created_at, updated_at,
 				   salary, bonus, performance, score, amount,
-				   is_active, description, email, phone 
+				   is_active, description, email, phone
 			FROM test_users WHERE name = :v1`, "张三").
 			Scan(&name, &age, &birthDate, &createdAt, &updatedAt,
 				&salary, &bonus, &performance, &score, &amount,
@@ -211,7 +211,7 @@ func TestCRUD(t *testing.T) {
 		)
 
 		err = db.QueryRowContext(ctx, `
-			SELECT age, updated_at, salary, description 
+			SELECT age, updated_at, salary, description
 			FROM test_users WHERE name = :v1`, "张三").
 			Scan(&age, &updatedAt, &salary, &description)
 

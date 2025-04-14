@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Covsj/gokit/pkg/log"
+	log "github.com/Covsj/gokit/pkg/ilog"
 	"github.com/stretchr/testify/assert"
 	"github.com/xuri/excelize/v2"
 )

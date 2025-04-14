@@ -1,4 +1,4 @@
-package log
+package ilog
 
 import (
 	"encoding/json"
@@ -11,8 +11,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var log *logrus.Logger
-var errLog *logrus.Logger
+var Log *logrus.Logger
+var ErrLog *logrus.Logger
 var once sync.Once
 
 const (
@@ -35,15 +35,15 @@ const (
 
 func init() {
 	once.Do(func() {
-		log = logrus.New()
-		SetLogFormat(log, FormatText)
-		log.SetLevel(logrus.InfoLevel)
-		log.SetOutput(os.Stdout)
+		Log = logrus.New()
+		SetLogFormat(Log, FormatText)
+		Log.SetLevel(logrus.InfoLevel)
+		Log.SetOutput(os.Stdout)
 
-		errLog = logrus.New()
-		SetLogFormat(errLog, FormatText)
-		errLog.SetLevel(logrus.InfoLevel)
-		errLog.SetOutput(os.Stderr)
+		ErrLog = logrus.New()
+		SetLogFormat(ErrLog, FormatText)
+		ErrLog.SetLevel(logrus.InfoLevel)
+		ErrLog.SetOutput(os.Stderr)
 	})
 }
 
@@ -141,7 +141,7 @@ func formatValue(v interface{}) string {
 	if err != nil {
 		return fmt.Sprintf("%v", v)
 	}
-	
+
 	// 如果是简单的字符串，去掉多余的引号
 	str := string(jsonBytes)
 	if len(str) >= 2 && str[0] == '"' && str[len(str)-1] == '"' {
@@ -234,28 +234,28 @@ func logWithFieldsFormat(logger *logrus.Logger, level logrus.Level, format strin
 	}
 }
 func Info(key interface{}, args ...interface{}) {
-	logWithFields(log, logrus.InfoLevel, key, args...)
+	logWithFields(Log, logrus.InfoLevel, key, args...)
 }
 func InfoF(format string, args ...interface{}) {
-	logWithFieldsFormat(log, logrus.InfoLevel, format, args...)
+	logWithFieldsFormat(Log, logrus.InfoLevel, format, args...)
 }
 func Error(key string, args ...interface{}) {
-	logWithFields(errLog, logrus.ErrorLevel, key, args...)
+	logWithFields(ErrLog, logrus.ErrorLevel, key, args...)
 }
 func ErrorF(format string, args ...interface{}) {
-	logWithFieldsFormat(errLog, logrus.ErrorLevel, format, args...)
+	logWithFieldsFormat(ErrLog, logrus.ErrorLevel, format, args...)
 }
 func Warn(key string, args ...interface{}) {
-	logWithFields(log, logrus.WarnLevel, key, args...)
+	logWithFields(Log, logrus.WarnLevel, key, args...)
 }
 func WarnF(format string, args ...interface{}) {
-	logWithFieldsFormat(log, logrus.WarnLevel, format, args...)
+	logWithFieldsFormat(Log, logrus.WarnLevel, format, args...)
 }
 func Debug(key string, args ...interface{}) {
-	logWithFields(log, logrus.DebugLevel, key, args...)
+	logWithFields(Log, logrus.DebugLevel, key, args...)
 }
 func DebugF(format string, args ...interface{}) {
-	logWithFieldsFormat(log, logrus.DebugLevel, format, args...)
+	logWithFieldsFormat(Log, logrus.DebugLevel, format, args...)
 }
 
 type Logger struct {

@@ -16,6 +16,11 @@ const (
 	tokenPath    = "/token"
 )
 
+const (
+	MAIL_TM_API = "https://api.mail.tm"
+	MAIL_GW_API = "https://api.mail.gw"
+)
+
 type TM struct {
 	BaseUrl string
 	Domains []Domain

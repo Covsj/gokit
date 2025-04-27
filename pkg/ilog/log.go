@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 
@@ -66,10 +67,16 @@ func (f *customTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	// 格式化级别和时间戳
 	timestamp := entry.Time.Format(f.TimestampFormat)
 	level := strings.ToUpper(entry.Level.String())
-	if len(level) < 7 {
-		level = level + strings.Repeat(" ", 7-len(level))
+	// 保持Level为四个字符，自定义Level
+	if level == "DEBUG" {
+		level = "DEBU"
+	} else if level == "INFO" {
+		level = "INFO"
+	} else if level == "WARNING" {
+		level = "WARN"
+	} else if level == "ERROR" {
+		level = "ERRO"
 	}
-
 	// 根据日志级别选择颜色
 	var levelColor int
 	switch entry.Level {
@@ -89,9 +96,15 @@ func (f *customTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	var fields string
 	if len(entry.Data) > 0 {
 		pairs := make([]string, 0, len(entry.Data))
-		for k, v := range entry.Data {
+		// 遍历entry.Data，将key和value格式化,有序处理根据Key
+		keys := make([]string, 0, len(entry.Data))
+		for k := range entry.Data {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
 			if k != "caller" { // 跳过caller字段，因为已经单独处理
-				formattedValue := formatValue(v)
+				formattedValue := formatValue(entry.Data[k])
 				pairs = append(pairs, fmt.Sprintf("\x1b[%dm%v\x1b[0m=\x1b[%dm%v\x1b[0m",
 					colorFieldKey, k, // 字段名使用青色
 					colorFieldValue, formattedValue)) // 字段值使用黄色
@@ -172,13 +185,14 @@ func addCallerFields(fields map[string]interface{}) logrus.Fields {
 	if fields == nil {
 		fields = make(map[string]interface{})
 	}
-	pc, _, line, ok := runtime.Caller(3)
+	pc, fileName, line, ok := runtime.Caller(3)
 	if ok {
 		function := runtime.FuncForPC(pc)
 		if function != nil {
 			parts := strings.Split(function.Name(), ".")
+			fileName = strings.TrimSuffix(strings.Split(fileName, "/")[len(strings.Split(fileName, "/"))-1], ".go")
 			funcName := parts[len(parts)-1]
-			fields["caller"] = fmt.Sprintf("%s:%d", funcName, line)
+			fields["caller"] = fmt.Sprintf("%s:%s:%d", fileName, funcName, line)
 		}
 	}
 	return fields

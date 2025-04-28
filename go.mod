@@ -9,8 +9,6 @@ require (
 	github.com/chenzhijie/go-web3 v0.0.0-20241004101201-e508ccdb37f7
 	github.com/ethereum/go-ethereum v1.14.12
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pkg/errors v0.9.1
-	github.com/sijms/go-ora/v2 v2.8.24
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	github.com/tyler-smith/go-bip39 v1.1.0

@@ -68,3 +68,62 @@ type Service interface {
 	NewAccount(*Options) (*Account, error)
 	MessagesList(*Account, int) ([]Message, error)
 }
+
+// IMAP相关类型定义
+type ImapOptions struct {
+	Addr     string // IMAP服务器地址，如 "imap.qq.com:993"
+	Username string // 邮箱地址
+	Password string // IMAP密码（不是邮箱登录密码）
+	Folder   string // 邮箱文件夹，默认 "INBOX"
+}
+
+type ImapMessage struct {
+	UID         uint32           `json:"uid"`
+	SeqNum      uint32           `json:"seqNum"`
+	From        string           `json:"from"`
+	To          []string         `json:"to"`
+	Subject     string           `json:"subject"`
+	Date        time.Time        `json:"date"`
+	TextContent string           `json:"textContent"`
+	HTMLContent string           `json:"htmlContent"`
+	Attachments []ImapAttachment `json:"attachments"`
+	Flags       []string         `json:"flags"`
+	Size        uint32           `json:"size"`
+}
+
+type ImapAttachment struct {
+	Filename    string `json:"filename"`
+	ContentType string `json:"contentType"`
+	Size        int    `json:"size"`
+	Data        []byte `json:"data,omitempty"`
+}
+
+type ImapFolder struct {
+	Name     string `json:"name"`
+	Messages uint32 `json:"messages"`
+	Unseen   uint32 `json:"unseen"`
+}
+
+type ImapSearchCriteria struct {
+	From    string    `json:"from,omitempty"`
+	To      string    `json:"to,omitempty"`
+	Subject string    `json:"subject,omitempty"`
+	Body    string    `json:"body,omitempty"`
+	Since   time.Time `json:"since,omitempty"`
+	Before  time.Time `json:"before,omitempty"`
+	Unseen  bool      `json:"unseen,omitempty"`
+	Seen    bool      `json:"seen,omitempty"`
+}
+
+// IMAP服务接口
+type ImapService interface {
+	Connect(opt *ImapOptions) error
+	Disconnect() error
+	GetFolders() ([]ImapFolder, error)
+	GetMessages(folder string, page int, pageSize int) ([]ImapMessage, error)
+	GetMessageByUID(uid uint32) (*ImapMessage, error)
+	MarkAsRead(uids []uint32) error
+	MarkAsUnread(uids []uint32) error
+	DeleteMessages(uids []uint32) error
+	SearchMessages(criteria *ImapSearchCriteria) ([]uint32, error)
+}

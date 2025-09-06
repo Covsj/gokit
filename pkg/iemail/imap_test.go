@@ -7,7 +7,7 @@ import (
 
 func TestDragonsmailImapClient_Creation(t *testing.T) {
 	// 测试创建IMAP客户端
-	client := NewDragonsmailClient("ThanhWuTTk@gutsmail.com", "QmoPPOYOQc.")
+	client := NewDragonsmailClient("", "")
 	if client == nil {
 		t.Error("NewImapClient() 返回 nil")
 	}

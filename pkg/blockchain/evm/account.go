@@ -72,7 +72,17 @@ func deriveKeyFromSeed(seed []byte, derivationPath string) (*ecdsa.PrivateKey, e
 		return nil, fmt.Errorf("extract private key failed: %w", err)
 	}
 
-	return privateKey.ToECDSA(), nil
+	// IMPORTANT: Construct the ECDSA key using go-ethereum's curve implementation
+	// to ensure compatibility with crypto.Sign, which requires crypto.S256().
+	// Using btcec's ToECDSA() yields an ECDSA key with a different curve type
+	// and causes: "private key curve is not secp256k1".
+	privBytes := privateKey.Serialize()
+	ethPrivKey, err := crypto.ToECDSA(privBytes)
+	if err != nil {
+		return nil, fmt.Errorf("convert private key to geth ecdsa failed: %w", err)
+	}
+
+	return ethPrivKey, nil
 }
 
 // NewAccountWithMnemonic 使用助记词创建账户，使用默认的BIP44路径

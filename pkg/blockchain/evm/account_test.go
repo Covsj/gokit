@@ -3,7 +3,9 @@ package evm
 import (
 	"testing"
 
+	"github.com/Covsj/gokit/pkg/ilog"
 	log "github.com/Covsj/gokit/pkg/ilog"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 type TestAccountCase struct {
@@ -76,4 +78,6 @@ func TestETHWallet_Privatekey_Publickey_Address(t *testing.T) {
 
 	address := account.Address()
 	log.Info("测试公私钥相关", "address", address)
+	signature, err := account.Sign([]byte("1ww12e21e23"), "")
+	ilog.Info("测试签名", "sig", hexutil.Encode(signature), "err", err)
 }

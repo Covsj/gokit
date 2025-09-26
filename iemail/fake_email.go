@@ -27,6 +27,10 @@ func (t *FakeCli) CliName() string {
 	return "FakeMail"
 }
 
+func (t *FakeCli) Disconnect() error {
+	return nil
+}
+
 func (t *FakeCli) dohttp(reqUrl, method string, rawBody map[string]any,
 	out any) (*models.Response, error) {
 	headers := map[string]string{

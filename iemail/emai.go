@@ -42,6 +42,7 @@ type IEmail interface {
 	GetDomains() ([]string, error)
 	GetEmailMsgs() ([]Msg, error)
 	Data() map[string]any
+	Disconnect() error
 }
 
 func joinURL(base, path string) string {

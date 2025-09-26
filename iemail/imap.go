@@ -245,6 +245,10 @@ func (t *ImapCli) CliName() string {
 	return "IMAP"
 }
 
+func (t *ImapCli) GetDomains() ([]string, error) {
+	return []string{}, nil
+}
+
 // Data 返回关键信息，便于统一展示
 func (t *ImapCli) Data() map[string]any {
 	return map[string]any{
@@ -258,7 +262,7 @@ func (t *ImapCli) dohttp(reqUrl, method string, rawBody map[string]any, out any)
 }
 
 // NewImapClient 通用构造器：根据传入的 ImapOpt 建立连接
-func (t *ImapCli) NewEmailCli(opt map[string]any) (*ImapCli, error) {
+func (t *ImapCli) NewEmailCli(opt map[string]any) (IEmail, error) {
 	t = &ImapCli{}
 	if addr, ok := opt["addr"].(string); ok {
 		t.Addr = addr

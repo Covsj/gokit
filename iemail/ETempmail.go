@@ -22,6 +22,10 @@ func (t *ETempMailCli) CliName() string {
 	return "ETempMail"
 }
 
+func (t *ETempMailCli) Disconnect() error {
+	return nil
+}
+
 func (t *ETempMailCli) dohttp(reqUrl, method string, rawBody map[string]any, out any) (*models.Response, error) {
 	headers := map[string]string{
 		"user-agent":       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",

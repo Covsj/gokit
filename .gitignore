@@ -1,0 +1,15 @@
+.idea/
+*.iml
+
+release/
+
+memo
+
+*.ig
+ignore/
+test/
+cmd/
+.DS_Store
+vscode/
+*.log
+*key*

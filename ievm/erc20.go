@@ -1,4 +1,4 @@
-package evm
+package ievm
 
 import (
 	"math/big"
@@ -133,15 +133,15 @@ func (e *ERC20) Allowance(owner, spender string) (*big.Int, error) {
 
 func (e *ERC20) Transfer(to string, amount *big.Int) (*types.Transaction, error) {
 	return SendContractMethod(e.IAcc, e.Address, ERC20ABI,
-		"transfer", common.HexToAddress(to), amount)
+		"transfer", big.NewInt(0), common.HexToAddress(to), amount)
 }
 
 func (e *ERC20) TransferFrom(from, to string, amount *big.Int) (*types.Transaction, error) {
 	return SendContractMethod(e.IAcc, e.Address, ERC20ABI,
-		"transferFrom", common.HexToAddress(from), common.HexToAddress(to), amount)
+		"transferFrom", big.NewInt(0), common.HexToAddress(from), common.HexToAddress(to), amount)
 }
 
 func (e *ERC20) Approve(spender string, amount *big.Int) (*types.Transaction, error) {
 	return SendContractMethod(e.IAcc, e.Address, ERC20ABI,
-		"approve", common.HexToAddress(spender), amount)
+		"approve", big.NewInt(0), common.HexToAddress(spender), amount)
 }

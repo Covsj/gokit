@@ -1,10 +1,25 @@
-package evm
+package ievm
 
 import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 )
+
+// Solidity 与 Go 类型对应关系（go-ethereum/abi 编解码常用约定）
+// - address           -> common.Address
+// - bool              -> bool
+// - string            -> string
+// - bytes             -> []byte
+// - bytes1..bytes32   -> [1]byte..[32]byte（结构体字段可用定长数组；一般解包也可视作 []byte）
+// - uint / uint256    -> *big.Int  （Solidity 的 uint 为 uint256 别名）
+// - int / int256      -> *big.Int
+// - uint8/16/32/64    -> uint8/uint16/uint32/uint64
+// - int8/16/32/64     -> int8/int16/int32/int64
+// - fixed bytes/ints  -> 同上相应 Go 基本/数组类型
+// - address[]         -> []common.Address
+// - T[]               -> []T （T 按上述映射）
+// - tuple             -> struct（按字段顺序映射），或 []interface{}（使用 Pack/Unpack 原始返回）
 
 // Pack 将 ABI 方法与参数编码为 data
 func Pack(abiJSON, method string, args ...interface{}) ([]byte, error) {

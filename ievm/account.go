@@ -1,155 +1,259 @@
 package ievm
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
+	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/tyler-smith/go-bip32"
+	"github.com/tyler-smith/go-bip39"
 )
 
-// 表示以太坊账户，包含私钥和地址信息
-type EVMAccount struct {
-	privateKey *ecdsa.PrivateKey // 账户的ECDSA私钥
-	address    common.Address    // 对应的以太坊地址
+// IAccount 简化账户：持有私钥与地址, 封装 go-ethereum 客户端，提供简洁易用的多链 EVM 能力
+type IAccount struct {
+	RPC          string
+	ChainID      *big.Int
+	key          *ecdsa.PrivateKey
+	address      common.Address
+	EInnerClient *ethclient.Client
 }
 
-// 创建一个空的EVMAccount实例
-func New(mnemonic string, accountIndex int, privateKeyHex string) (evmAcc *EVMAccount, err error) {
-	if mnemonic != "" {
-		return NewWithMnemonicIndex(mnemonic, accountIndex)
-	}
-	if privateKeyHex != "" {
-		return NewWithPrivateKey(privateKeyHex)
-	}
-	mnemonic = GenerateMnemonic()
-
-	return NewWithMnemonic(mnemonic)
-}
-
-// NewWithMnemonic 使用助记词创建账户，使用默认的BIP44路径
-func NewWithMnemonic(mnemonic string) (*EVMAccount, error) {
+// NewWithMnemonicIndex 使用助记词和账户索引创建账户，派生路径 m/44'/60'/0'/0/{index}
+func NewWithMnemonicIndex(mnemonic string, index int,
+	rpcURL string) (*IAccount, error) {
 	if mnemonic == "" {
 		return nil, fmt.Errorf("助记词不能为空")
 	}
-	return createWalletFromMnemonic(mnemonic, DefaultDerivationPath)
-}
-
-// NewWithMnemonicIndex 使用助记词和账户索引创建账户
-func NewWithMnemonicIndex(mnemonic string, accountIndex int) (*EVMAccount, error) {
-	if mnemonic == "" {
-		return nil, fmt.Errorf("助记词不能为空")
+	if index < 0 {
+		index = 0
 	}
-	if accountIndex < 0 {
-		accountIndex = 0
+	// 校验助记词
+	if !bip39.IsMnemonicValid(mnemonic) {
+		return nil, fmt.Errorf("无效助记词")
 	}
-
-	// 使用自定义索引的BIP44路径
-	customPath := fmt.Sprintf("m/44'/60'/0'/0/%d", accountIndex)
-	return createWalletFromMnemonic(mnemonic, customPath)
-}
-
-// NewWithPrivateKey 使用私钥创建账户
-func NewWithPrivateKey(privateKeyHex string) (*EVMAccount, error) {
-	if privateKeyHex == "" {
-		return nil, fmt.Errorf("私钥不能为空")
-	}
-
-	// 移除可能的0x前缀
-	if len(privateKeyHex) > 2 && privateKeyHex[:2] == "0x" {
-		privateKeyHex = privateKeyHex[2:]
-	}
-
-	privateKey, err := crypto.HexToECDSA(privateKeyHex)
+	// 生成种子（不使用密码短语）
+	seed := bip39.NewSeed(mnemonic, "")
+	// BIP32 根
+	master, err := bip32.NewMasterKey(seed)
 	if err != nil {
-		return nil, fmt.Errorf("invalid private key hex: %w", err)
+		return nil, fmt.Errorf("创建主密钥失败: %w", err)
+	}
+	harden := func(i uint32) uint32 { return i | bip32.FirstHardenedChild }
+	// m/44'/60'/0'/0/{index}
+	k44, _ := master.NewChildKey(harden(44))
+	k60, _ := k44.NewChildKey(harden(60))
+	k0h, _ := k60.NewChildKey(harden(0))
+	k0, _ := k0h.NewChildKey(0)
+	ki, _ := k0.NewChildKey(uint32(index))
+
+	// 32字节私钥
+	privBytes := ki.Key
+	if len(privBytes) != 32 {
+		if len(privBytes) > 32 {
+			privBytes = privBytes[len(privBytes)-32:]
+		} else {
+			padded := make([]byte, 32)
+			copy(padded[32-len(privBytes):], privBytes)
+			privBytes = padded
+		}
+	}
+	priv, err := crypto.ToECDSA(privBytes)
+	if err != nil {
+		return nil, fmt.Errorf("转换私钥失败: %w", err)
 	}
 
-	walletAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
-	return &EVMAccount{
-		privateKey: privateKey,
-		address:    walletAddress,
+	addr := crypto.PubkeyToAddress(priv.PublicKey)
+
+	ctx := context.Background()
+	eInnerClient, err := ethclient.DialContext(ctx, rpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("连接 RPC 失败: %w", err)
+	}
+	chainId, err := eInnerClient.ChainID(ctx)
+	if err != nil {
+		chainId = big.NewInt(0)
+	}
+
+	return &IAccount{
+		key:          priv,
+		address:      addr,
+		ChainID:      chainId,
+		RPC:          rpcURL,
+		EInnerClient: eInnerClient,
 	}, nil
 }
 
-// PrivateKey 获取账户私钥的字节表示
-func (a *EVMAccount) PrivateKey() ([]byte, error) {
-	if a.privateKey == nil {
-		return nil, fmt.Errorf("private key not initialized")
+// NewWithPrivateKey 从 0x 私钥创建账户
+func NewWithPrivateKey(hexKey string, rpcURL string) (*IAccount, error) {
+	if hexKey == "" {
+		return nil, fmt.Errorf("私钥不能为空")
 	}
-	return crypto.FromECDSA(a.privateKey), nil
-}
-
-// PrivateKeyHex 获取账户私钥的十六进制表示
-func (a *EVMAccount) PrivateKeyHex() (string, error) {
-	keyBytes, err := a.PrivateKey()
+	if len(hexKey) > 2 && hexKey[:2] == "0x" {
+		hexKey = hexKey[2:]
+	}
+	priv, err := crypto.HexToECDSA(hexKey)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("错误的私钥: %w", err)
 	}
-	return hexutil.Encode(keyBytes), nil
+	addr := crypto.PubkeyToAddress(priv.PublicKey)
+	ctx := context.Background()
+	eInnerClient, err := ethclient.DialContext(ctx, rpcURL)
+	if err != nil {
+		return nil, fmt.Errorf("连接 RPC 失败: %w", err)
+	}
+	chainId, err := eInnerClient.ChainID(ctx)
+	if err != nil {
+		chainId = big.NewInt(0)
+	}
+	return &IAccount{
+		key:          priv,
+		address:      addr,
+		ChainID:      chainId,
+		RPC:          rpcURL,
+		EInnerClient: eInnerClient,
+	}, nil
 }
 
-// PublicKey 获取账户公钥的字节表示
-func (a *EVMAccount) PublicKey() []byte {
-	return crypto.FromECDSAPub(&a.privateKey.PublicKey)
-}
-
-// PublicKeyHex 获取账户公钥的十六进制表示
-func (a *EVMAccount) PublicKeyHex() string {
-	pubKeyBytes := crypto.FromECDSAPub(&a.privateKey.PublicKey)
-	return hexutil.Encode(pubKeyBytes)
-}
-
-// Address 获取账户的以太坊地址
-func (a *EVMAccount) Address() string {
+func (a *IAccount) Address() string {
 	return a.address.Hex()
 }
 
-// Sign 用途: 签名用户消息，如登录认证、授权操作
-func (a *EVMAccount) Sign(message []byte, password string) (string, error) {
-	if a.privateKey == nil {
-		return "", fmt.Errorf("私钥未初始化")
+func (a *IAccount) PrivateKey() *ecdsa.PrivateKey {
+	return a.key
+}
+
+func (a *IAccount) PrivateKeyHex() string {
+	return hexutil.Encode(crypto.FromECDSA(a.key))
+}
+
+// Close 关闭连接
+func (a *IAccount) Close() {
+	if a != nil && a.EInnerClient != nil {
+		a.EInnerClient.Close()
 	}
+}
+
+// Balance 查询地址余额（最新块）
+func (a *IAccount) Balance(address string) (*big.Int, error) {
+	ctx := context.Background()
+	if !IsValidAddress(address) {
+		return nil, fmt.Errorf("无效地址: %s", address)
+	}
+	return a.EInnerClient.BalanceAt(ctx, common.HexToAddress(address), nil)
+}
+
+// Nonce 查询挂起 nonce
+func (a *IAccount) Nonce(address string) (uint64, error) {
+	ctx := context.Background()
+	if !IsValidAddress(address) {
+		return 0, fmt.Errorf("无效地址: %s", address)
+	}
+	return a.EInnerClient.PendingNonceAt(ctx, common.HexToAddress(address))
+}
+
+// SuggestGasPrice 建议 gasPrice（legacy）
+func (a *IAccount) SuggestGasPrice() (*big.Int, error) {
+	ctx := context.Background()
+	return a.EInnerClient.SuggestGasPrice(ctx)
+}
+
+// SuggestGasTipCap 建议优先费（EIP-1559）
+func (a *IAccount) SuggestGasTipCap() (*big.Int, error) {
+	ctx := context.Background()
+	return a.EInnerClient.SuggestGasTipCap(ctx)
+}
+
+// EstimateGas 估算 gasLimit
+func (a *IAccount) EstimateGas(from, to string, value *big.Int, data []byte) (uint64, error) {
+	ctx := context.Background()
+	var fromAddr common.Address
+	if from != "" {
+		if !IsValidAddress(from) {
+			return 0, fmt.Errorf("无效 from 地址: %s", from)
+		}
+		fromAddr = common.HexToAddress(from)
+	}
+	var toPtr *common.Address
+	if to != "" {
+		if !IsValidAddress(to) {
+			return 0, fmt.Errorf("无效 to 地址: %s", to)
+		}
+		addr := common.HexToAddress(to)
+		toPtr = &addr
+	}
+	msg := ethereum.CallMsg{From: fromAddr, To: toPtr, Value: value, Data: data}
+	return a.EInnerClient.EstimateGas(ctx, msg)
+}
+
+// OnlyReadCall 只读调用，不会发起交易
+func (a *IAccount) OnlyReadCall(to string, data []byte) ([]byte, error) {
+	ctx := context.Background()
+	if !IsValidAddress(to) {
+		return nil, fmt.Errorf("无效合约地址: %s", to)
+	}
+	addr := common.HexToAddress(to)
+	msg := ethereum.CallMsg{To: &addr, Data: data}
+	return a.EInnerClient.CallContract(ctx, msg, nil)
+}
+
+// SendTx 发送已签名交易
+func (a *IAccount) SendTx(tx *types.Transaction) (common.Hash, error) {
+	ctx := context.Background()
+	if err := a.EInnerClient.SendTransaction(ctx, tx); err != nil {
+		return common.Hash{}, err
+	}
+
+	// 等待交易上链并检查执行结果
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		receipt, err := a.EInnerClient.TransactionReceipt(waitCtx, tx.Hash())
+		if err == ethereum.NotFound {
+			select {
+			case <-waitCtx.Done():
+				return tx.Hash(), fmt.Errorf("等待交易上链超时: %s", tx.Hash().Hex())
+			case <-ticker.C:
+				continue
+			}
+		}
+		if err != nil {
+			return tx.Hash(), err
+		}
+		if receipt != nil {
+			if receipt.Status == types.ReceiptStatusFailed {
+				return tx.Hash(), fmt.Errorf("交易执行失败(status=0), tx: %s", tx.Hash().Hex())
+			}
+			return tx.Hash(), nil
+		}
+		select {
+		case <-waitCtx.Done():
+			return tx.Hash(), fmt.Errorf("等待交易上链超时: %s", tx.Hash().Hex())
+		case <-ticker.C:
+		}
+	}
+}
+
+// SignPersonal 对消息执行 personal_sign（带前缀）
+func (a *IAccount) SignPersonal(message []byte) (string, error) {
 	if len(message) == 0 {
 		return "", fmt.Errorf("消息不能为空")
 	}
-	signatureBytes, err := SignMessage(a.privateKey, message)
+	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(message))
+	hash := crypto.Keccak256([]byte(prefix), message)
+	sig, err := crypto.Sign(hash, a.key)
 	if err != nil {
 		return "", err
 	}
-	return hexutil.Encode(signatureBytes), err
-}
-
-// SignHex 对十六进制格式的消息进行签名
-func (a *EVMAccount) SignHex(messageHex string, password string) (string, error) {
-	messageBytes, err := hexutil.Decode(messageHex)
-	if err != nil {
-		return "", fmt.Errorf("解码hex消息失败: %w", err)
-	}
-
-	signature, err := a.Sign(messageBytes, password)
-	if err != nil {
-		return "", fmt.Errorf("签名消息失败: %w", err)
-	}
-
-	return signature, nil
-}
-
-// SignHash 直接签名32字节的哈希值，区块链交易签名，智能合约调用签名
-func (a *EVMAccount) SignHash(hash []byte) ([]byte, error) {
-	if a.privateKey == nil {
-		return nil, fmt.Errorf("私钥未初始化")
-	}
-	if len(hash) != 32 {
-		return nil, fmt.Errorf("哈希长度必须为32字节")
-	}
-
-	signature, err := crypto.Sign(hash, a.privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("sign hash failed: %w", err)
-	}
-	// Transform V from 0/1 to 27/28 according to the yellow paper
-	signature[crypto.RecoveryIDOffset] += 27
-	return signature, nil
+	return hexutil.Encode(sig), nil
 }

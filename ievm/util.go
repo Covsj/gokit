@@ -1,183 +1,127 @@
 package ievm
 
 import (
-	"crypto/ecdsa"
-	"encoding/hex"
 	"fmt"
 	"math/big"
-	"strings"
+	"reflect"
+	"regexp"
 
-	"github.com/Covsj/gokit/ilog"
-	"github.com/btcsuite/btcd/btcutil/hdkeychain"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/chenzhijie/go-web3/utils"
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/tyler-smith/go-bip32"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/tyler-smith/go-bip39"
 )
 
-// GetRPCByChainID 根据链ID获取随机RPC端点
-func GetRPCByChainID(chainID int64) string {
-	rpcList, exists := RPCEndpoints[chainID]
-	if !exists {
-		// 默认使用以太坊主网
-		rpcList = RPCEndpoints[ChainIDEthereum]
-	}
-
-	if len(rpcList) == 0 {
-		return ""
-	}
-
-	// 使用全局随机数生成器
-	return rpcList[globalRand.Intn(len(rpcList))]
-}
-
-// GetChainIDByEVM 根据EVM名称获取链ID
-func GetChainIDByEVM(evm string) int64 {
-	switch strings.ToLower(evm) {
-	case "bsc", "binance":
-		return ChainIDBSC
-	case "eth", "ethereum":
-		return ChainIDEthereum
+// ValidateAddress 粗略校验 0x 开头且 42 长度
+// IsValidAddress validate hex address
+func IsValidAddress(iaddress interface{}) bool {
+	re := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
+	switch v := iaddress.(type) {
+	case string:
+		return re.MatchString(v)
+	case common.Address:
+		return re.MatchString(v.Hex())
 	default:
-		return ChainIDEthereum // 默认以太坊
-	}
-}
-
-// FromDecimals 将代币数量从小数位转换为实际数量
-func FromDecimals(value *big.Int, decimals int64) *big.Float {
-	return utils.NewUtils().FromDecimals(value, decimals)
-}
-
-// ToDecimals 将实际数量转换为代币数量（考虑小数位）
-func ToDecimals(value uint64, decimals int64) *big.Int {
-	return utils.NewUtils().ToDecimals(value, decimals)
-}
-
-// ValidateAddress 验证以太坊地址格式
-func ValidateAddress(address string) bool {
-	if len(address) != 42 {
 		return false
 	}
-	if !strings.HasPrefix(address, "0x") {
+}
+
+// IsZeroAddress validate if it's a 0 address
+func IsZeroAddress(iaddress interface{}) bool {
+	var address common.Address
+	switch v := iaddress.(type) {
+	case string:
+		address = common.HexToAddress(v)
+	case common.Address:
+		address = v
+	default:
 		return false
 	}
-	// 可以添加更多验证逻辑
-	return true
+
+	zeroAddressBytes := common.FromHex("0x0000000000000000000000000000000000000000")
+	addressBytes := address.Bytes()
+	return reflect.DeepEqual(addressBytes, zeroAddressBytes)
 }
 
-// 通过助记词和派生路径创建钱包账户
-func createWalletFromMnemonic(mnemonic, derivationPath string) (*EVMAccount, error) {
-	seed, err := bip39.NewSeedWithErrorChecking(mnemonic, "")
-	if err != nil {
-		return nil, fmt.Errorf("从助记词生成seed失败: %w", err)
+// FromDecimals 将整数金额按小数位转换为可读浮点
+func FromDecimals(v *big.Int, decimals int64) *big.Float {
+	if v == nil {
+		return big.NewFloat(0)
 	}
-
-	privateKey, err := deriveKeyFromSeed(seed, derivationPath)
-	if err != nil {
-		return nil, fmt.Errorf("从seed加载私钥失败: %w", err)
-	}
-
-	walletAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
-	return &EVMAccount{
-		privateKey: privateKey,
-		address:    walletAddress,
-	}, nil
+	base := new(big.Float).SetInt(v)
+	den := new(big.Float).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(decimals), nil))
+	return new(big.Float).Quo(base, den)
 }
 
-// 使用BIP44标准从种子派生私钥
-func deriveKeyFromSeed(seed []byte, derivationPath string) (*ecdsa.PrivateKey, error) {
-	hdPath, err := accounts.ParseDerivationPath(derivationPath)
-	if err != nil {
-		return nil, fmt.Errorf("错误的派生路径: %w", err)
-	}
+// ToDecimals 将可读值按小数位转换为整数金额
+func ToDecimals(v uint64, decimals int64) *big.Int {
+	res := new(big.Int).Mul(new(big.Int).SetUint64(v), new(big.Int).Exp(big.NewInt(10), big.NewInt(decimals), nil))
+	return res
+}
 
-	masterKey, err := hdkeychain.NewMaster(seed, &chaincfg.MainNetParams)
-	if err != nil {
-		return nil, fmt.Errorf("创建HD Master失败: %w", err)
+// ToDecimalsFloat 将任意精度十进制字符串按小数位转换为整数金额
+// 例如："1.23"、decimals=6 -> 1230000
+func ToDecimalsFloat(s string, decimals int64) (*big.Int, error) {
+	if s == "" {
+		return big.NewInt(0), nil
 	}
-
-	derivedKey := masterKey
-	for _, index := range hdPath {
-		if derivedKey.IsAffectedByIssue172() {
-			return nil, fmt.Errorf("key derivation affected by btcd issue #172")
+	// 手工十进制解析以避免引入 big.Rat 额外舍入差异
+	// 允许可选的正负号
+	neg := false
+	switch s[0] {
+	case '-':
+		neg = true
+		s = s[1:]
+	case '+':
+		s = s[1:]
+	}
+	intPart := s
+	fracPart := ""
+	if i := indexByte(s, '.'); i >= 0 {
+		intPart = s[:i]
+		fracPart = s[i+1:]
+	}
+	// 去除前导零
+	for len(intPart) > 1 && intPart[0] == '0' {
+		intPart = intPart[1:]
+	}
+	// 处理小数位：截断或右补零到 decimals 位
+	if int64(len(fracPart)) > decimals {
+		fracPart = fracPart[:decimals]
+	} else {
+		for int64(len(fracPart)) < decimals {
+			fracPart += "0"
 		}
-
-		derivedKey, err = derivedKey.Derive(index)
-		if err != nil {
-			return nil, fmt.Errorf("derive child key failed: %w", err)
-		}
 	}
-
-	privateKey, err := derivedKey.ECPrivKey()
-	if err != nil {
-		return nil, fmt.Errorf("extract private key failed: %w", err)
+	merged := intPart + fracPart
+	if merged == "" {
+		merged = "0"
 	}
-
-	// IMPORTANT: Construct the ECDSA key using go-ethereum's curve implementation
-	// to ensure compatibility with crypto.Sign, which requires crypto.S256().
-	// Using btcec's ToECDSA() yields an ECDSA key with a different curve type
-	// and causes: "private key curve is not secp256k1".
-	privBytes := privateKey.Serialize()
-	ethPrivKey, err := crypto.ToECDSA(privBytes)
-	if err != nil {
-		return nil, fmt.Errorf("convert private key to geth ecdsa failed: %w", err)
+	// 解析为大整数
+	out := new(big.Int)
+	_, ok := out.SetString(merged, 10)
+	if !ok {
+		return nil, fmt.Errorf("非法十进制: %s", s)
 	}
-
-	return ethPrivKey, nil
+	if neg {
+		out.Neg(out)
+	}
+	return out, nil
 }
 
-// GenerateMnemonic 生成助记词
-func GenerateMnemonic() string {
-	// 生成128位熵（12个单词）
+// indexByte 返回字节在字符串中的索引，不存在返回 -1
+func indexByte(s string, b byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == b {
+			return i
+		}
+	}
+	return -1
+}
+
+// GenerateMnemonic 生成 12 个词助记词
+func GenerateMnemonic() (string, error) {
 	entropy, err := bip39.NewEntropy(128)
 	if err != nil {
-		ilog.Error("生成熵失败", "错误", err)
-		return ""
+		return "", err
 	}
-	// 生成助记词
-	mnemonic, err := bip39.NewMnemonic(entropy)
-	if err != nil {
-		ilog.Error("生成助记词失败", "错误", err)
-		return ""
-	}
-	return mnemonic
-}
-
-// GenerateEVMAddress 根据助记词生成ETH地址和私钥
-func GenerateEVMAddress(mnemonic string) (string, string) {
-	harden := func(i uint32) uint32 { return i | bip32.FirstHardenedChild }
-	seed := bip39.NewSeed(mnemonic, "") // 64 bytes
-	masterKey, err := bip32.NewMasterKey(seed)
-	if err != nil {
-		return "", ""
-	}
-
-	// path m/44'/60'/0'/0/0
-	k1, _ := masterKey.NewChildKey(harden(44))
-	k2, _ := k1.NewChildKey(harden(60))
-	k3, _ := k2.NewChildKey(harden(0))
-	k4, _ := k3.NewChildKey(0)
-	k5, _ := k4.NewChildKey(0)
-	ethPrivKeyBytes := k5.Key
-	// Ensure length 32
-	if len(ethPrivKeyBytes) != 32 {
-		// Some implementations include a leading zero, trim/pad if necessary
-		if len(ethPrivKeyBytes) > 32 {
-			ethPrivKeyBytes = ethPrivKeyBytes[len(ethPrivKeyBytes)-32:]
-		} else {
-			padded := make([]byte, 32)
-			copy(padded[32-len(ethPrivKeyBytes):], ethPrivKeyBytes)
-			ethPrivKeyBytes = padded
-		}
-	}
-
-	ethKey, err := crypto.ToECDSA(ethPrivKeyBytes)
-	if err != nil {
-		return "", ""
-	}
-	ethAddr := crypto.PubkeyToAddress(ethKey.PublicKey)
-	evmPrivateKey, evmAddr := hex.EncodeToString(ethPrivKeyBytes), ethAddr.Hex()
-	return evmPrivateKey, evmAddr
+	return bip39.NewMnemonic(entropy)
 }

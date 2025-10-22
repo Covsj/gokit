@@ -10,6 +10,7 @@ type User struct {
 }
 
 func TestLogger(t *testing.T) {
+	SetCallerConfig(3, true)
 	// 测试带字段的日志
 	Info("用户登录", "用户ID", "12345", "IP", "192.168.1.1",
 		"struct", User{Name: "John", Age: 30},

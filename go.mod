@@ -5,9 +5,6 @@ go 1.24.7
 require (
 	gitee.com/golang-module/dongle v0.2.8
 	github.com/Covsj/requests v1.0.1
-	github.com/btcsuite/btcd v0.24.2
-	github.com/btcsuite/btcd/btcutil v1.1.6
-	github.com/chenzhijie/go-web3 v0.0.0-20241004101201-e508ccdb37f7
 	github.com/chromedp/chromedp v0.14.1
 	github.com/coocood/freecache v1.2.4
 	github.com/emersion/go-imap v1.2.1
@@ -28,8 +25,6 @@ require (
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/bitly/go-simplejson v0.5.0 // indirect
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.3.4 // indirect
-	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
@@ -63,8 +58,6 @@ require (
 	github.com/tiendc/go-deepcopy v1.6.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
-	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.56.0 // indirect
 	github.com/wangluozhe/chttp v1.0.14 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xuri/efp v0.0.1 // indirect

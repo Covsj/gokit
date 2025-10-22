@@ -7,7 +7,7 @@ import (
 
 func TestProcessKey(t *testing.T) {
 	p := NewCaesarUtil(nil, nil, "", nil)
-	ori := "sA^vWg3zGMRV2S~DS9Bt0xNraE^L59OR162sByD"
+	ori := "grape connect shuffle guide cradle coast climb report target weird prefer pistol"
 	fmt.Println(ori)
 	enc := p.EncodeMultipleTimes(ori, true)
 	fmt.Println(enc)

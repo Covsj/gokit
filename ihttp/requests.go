@@ -3,13 +3,15 @@ package ihttp
 import (
 	"encoding/json"
 	"errors"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/Covsj/gokit/ilog"
 	"github.com/Covsj/requests"
 	"github.com/Covsj/requests/models"
-	"github.com/Covsj/requests/url"
+	requests_url "github.com/Covsj/requests/url"
 )
 
 type Opt struct {
@@ -20,7 +22,7 @@ type Opt struct {
 
 	Data  map[string]any
 	Json  map[string]any
-	Files *url.Files
+	Files *requests_url.Files
 
 	Headers map[string]string
 	Cookies map[string]string
@@ -33,6 +35,38 @@ type Opt struct {
 	RandomJA3      int // 0为false，默认关闭
 
 	NotLog bool
+}
+
+// getProxyFromEnv 从环境变量获取代理设置
+func getProxyFromEnv(targetURL string) string {
+	// 解析目标URL以确定协议
+	parsedURL, err := url.Parse(targetURL)
+	if err != nil {
+		return ""
+	}
+
+	var proxyEnv string
+	if parsedURL.Scheme == "https" {
+		proxyEnv = os.Getenv("HTTPS_PROXY")
+		if proxyEnv == "" {
+			proxyEnv = os.Getenv("https_proxy")
+		}
+	} else {
+		proxyEnv = os.Getenv("HTTP_PROXY")
+		if proxyEnv == "" {
+			proxyEnv = os.Getenv("http_proxy")
+		}
+	}
+
+	// 如果没有找到协议特定的代理，尝试通用代理
+	if proxyEnv == "" {
+		proxyEnv = os.Getenv("ALL_PROXY")
+		if proxyEnv == "" {
+			proxyEnv = os.Getenv("all_proxy")
+		}
+	}
+
+	return proxyEnv
 }
 
 func Do(opt *Opt) (resp *models.Response, err error) {
@@ -115,11 +149,11 @@ func Do(opt *Opt) (resp *models.Response, err error) {
 
 	}()
 
-	req := &url.Request{
+	req := &requests_url.Request{
 		AllowRedirects: opt.AllowRedirects == 0,
 		Verify:         opt.Verify == 0,
 		RandomJA3:      opt.RandomJA3 != 0,
-		Headers:        url.NewHeaders(),
+		Headers:        requests_url.NewHeaders(),
 	}
 
 	for k, v := range opt.Headers {
@@ -127,11 +161,16 @@ func Do(opt *Opt) (resp *models.Response, err error) {
 	}
 
 	if len(opt.Cookies) > 0 {
-		req.Cookies = url.ParseCookies(URL, opt.Cookies)
+		req.Cookies = requests_url.ParseCookies(URL, opt.Cookies)
 	}
 
-	if opt.Proxy != "" {
-		req.Proxies = opt.Proxy
+	// 设置代理：优先使用显式设置的代理，否则从环境变量获取
+	proxy := opt.Proxy
+	if proxy == "" {
+		proxy = getProxyFromEnv(URL)
+	}
+	if proxy != "" {
+		req.Proxies = proxy
 	}
 	if opt.TimeOut == 0 {
 		opt.TimeOut = 600
@@ -139,7 +178,7 @@ func Do(opt *Opt) (resp *models.Response, err error) {
 	req.Timeout = time.Duration(opt.TimeOut) * time.Second
 
 	if len(opt.Data) != 0 {
-		req.Data = url.ParseData(opt.Data)
+		req.Data = requests_url.ParseData(opt.Data)
 	} else if len(opt.Json) != 0 {
 		req.Json = opt.Json
 	} else if opt.Files != nil {

@@ -5,15 +5,13 @@ import (
 	"testing"
 )
 
-type ss struct {
-	CContext string `json:"@context"`
-}
-
-func TestHttp1(t *testing.T) {
+// TestProxyPriority 测试代理优先级
+func TestProxyPriority(t *testing.T) {
 	var out any
+	// 测试显式代理优先于环境变量
 	resp, err := Do(&Opt{
 		Method:  "GET",
-		URL:     "https://api.mail.gw/domains",
+		URL:     "https://clob.polymarket.com/",
 		RespOut: &out,
 	})
 	if resp != nil {

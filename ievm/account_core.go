@@ -5,12 +5,9 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
-	"time"
 
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/tyler-smith/go-bip32"
@@ -25,6 +22,8 @@ type IAccount struct {
 	address      common.Address
 	EInnerClient *ethclient.Client
 }
+
+// ==================== 账户创建和管理 ====================
 
 // NewWithMnemonicIndex 使用助记词和账户索引创建账户，派生路径 m/44'/60'/0'/0/{index}
 func NewWithMnemonicIndex(mnemonic string, index int,
@@ -122,14 +121,19 @@ func NewWithPrivateKey(hexKey string, rpcURL string) (*IAccount, error) {
 	}, nil
 }
 
+// ==================== 基础账户信息 ====================
+
+// Address 获取账户地址
 func (a *IAccount) Address() string {
 	return a.address.Hex()
 }
 
+// PrivateKey 获取私钥
 func (a *IAccount) PrivateKey() *ecdsa.PrivateKey {
 	return a.key
 }
 
+// PrivateKeyHex 获取十六进制私钥
 func (a *IAccount) PrivateKeyHex() string {
 	return hexutil.Encode(crypto.FromECDSA(a.key))
 }
@@ -141,119 +145,76 @@ func (a *IAccount) Close() {
 	}
 }
 
-// Balance 查询地址余额（最新块）
-func (a *IAccount) Balance(address string) (*big.Int, error) {
-	ctx := context.Background()
-	if !IsValidAddress(address) {
-		return nil, fmt.Errorf("无效地址: %s", address)
+// ==================== 网络和连接状态 ====================
+
+// IsConnected 检查网络连接状态
+func (a *IAccount) IsConnected() bool {
+	if a == nil || a.EInnerClient == nil {
+		return false
 	}
-	return a.EInnerClient.BalanceAt(ctx, common.HexToAddress(address), nil)
+	ctx := context.Background()
+	_, err := a.EInnerClient.ChainID(ctx)
+	return err == nil
 }
 
-// Nonce 查询挂起 nonce
-func (a *IAccount) Nonce(address string) (uint64, error) {
-	ctx := context.Background()
-	if !IsValidAddress(address) {
-		return 0, fmt.Errorf("无效地址: %s", address)
-	}
-	return a.EInnerClient.PendingNonceAt(ctx, common.HexToAddress(address))
-}
-
-// SuggestGasPrice 建议 gasPrice（legacy）
-func (a *IAccount) SuggestGasPrice() (*big.Int, error) {
-	ctx := context.Background()
-	return a.EInnerClient.SuggestGasPrice(ctx)
-}
-
-// SuggestGasTipCap 建议优先费（EIP-1559）
-func (a *IAccount) SuggestGasTipCap() (*big.Int, error) {
-	ctx := context.Background()
-	return a.EInnerClient.SuggestGasTipCap(ctx)
-}
-
-// EstimateGas 估算 gasLimit
-func (a *IAccount) EstimateGas(from, to string, value *big.Int, data []byte) (uint64, error) {
-	ctx := context.Background()
-	var fromAddr common.Address
-	if from != "" {
-		if !IsValidAddress(from) {
-			return 0, fmt.Errorf("无效 from 地址: %s", from)
-		}
-		fromAddr = common.HexToAddress(from)
-	}
-	var toPtr *common.Address
-	if to != "" {
-		if !IsValidAddress(to) {
-			return 0, fmt.Errorf("无效 to 地址: %s", to)
-		}
-		addr := common.HexToAddress(to)
-		toPtr = &addr
-	}
-	msg := ethereum.CallMsg{From: fromAddr, To: toPtr, Value: value, Data: data}
-	return a.EInnerClient.EstimateGas(ctx, msg)
-}
-
-// OnlyReadCall 只读调用，不会发起交易
-func (a *IAccount) OnlyReadCall(to string, data []byte) ([]byte, error) {
-	ctx := context.Background()
-	if !IsValidAddress(to) {
-		return nil, fmt.Errorf("无效合约地址: %s", to)
-	}
-	addr := common.HexToAddress(to)
-	msg := ethereum.CallMsg{To: &addr, Data: data}
-	return a.EInnerClient.CallContract(ctx, msg, nil)
-}
-
-// SendTx 发送已签名交易
-func (a *IAccount) SendTx(tx *types.Transaction) (common.Hash, error) {
-	ctx := context.Background()
-	if err := a.EInnerClient.SendTransaction(ctx, tx); err != nil {
-		return common.Hash{}, err
+// GetNetworkInfo 获取网络信息
+func (a *IAccount) GetNetworkInfo() (chainID *big.Int, networkName string, err error) {
+	if a == nil || a.EInnerClient == nil {
+		return nil, "", fmt.Errorf("客户端未初始化")
 	}
 
-	// 等待交易上链并检查执行结果
-	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		receipt, err := a.EInnerClient.TransactionReceipt(waitCtx, tx.Hash())
-		if err == ethereum.NotFound {
-			select {
-			case <-waitCtx.Done():
-				return tx.Hash(), fmt.Errorf("等待交易上链超时: %s", tx.Hash().Hex())
-			case <-ticker.C:
-				continue
-			}
-		}
+	chainID = a.ChainID
+	if chainID == nil {
+		ctx := context.Background()
+		chainID, err = a.EInnerClient.ChainID(ctx)
 		if err != nil {
-			return tx.Hash(), err
-		}
-		if receipt != nil {
-			if receipt.Status == types.ReceiptStatusFailed {
-				return tx.Hash(), fmt.Errorf("交易执行失败(status=0), tx: %s", tx.Hash().Hex())
-			}
-			return tx.Hash(), nil
-		}
-		select {
-		case <-waitCtx.Done():
-			return tx.Hash(), fmt.Errorf("等待交易上链超时: %s", tx.Hash().Hex())
-		case <-ticker.C:
+			return nil, "", fmt.Errorf("获取链ID失败: %w", err)
 		}
 	}
+
+	// 根据链ID返回网络名称
+	networkName = getNetworkName(chainID)
+	return chainID, networkName, nil
 }
 
-// SignPersonal 对消息执行 personal_sign（带前缀）
-func (a *IAccount) SignPersonal(message []byte) (string, error) {
-	if len(message) == 0 {
-		return "", fmt.Errorf("消息不能为空")
+// getNetworkName 根据链ID获取网络名称
+func getNetworkName(chainID *big.Int) string {
+	switch chainID.Uint64() {
+	case 1:
+		return "Ethereum Mainnet"
+	case 3:
+		return "Ropsten Testnet"
+	case 4:
+		return "Rinkeby Testnet"
+	case 5:
+		return "Goerli Testnet"
+	case 42:
+		return "Kovan Testnet"
+	case 56:
+		return "BSC Mainnet"
+	case 97:
+		return "BSC Testnet"
+	case 137:
+		return "Polygon Mainnet"
+	case 80001:
+		return "Polygon Mumbai Testnet"
+	case 250:
+		return "Fantom Opera"
+	case 4002:
+		return "Fantom Testnet"
+	case 43114:
+		return "Avalanche C-Chain"
+	case 43113:
+		return "Avalanche Fuji Testnet"
+	case 10:
+		return "Optimism"
+	case 420:
+		return "Optimism Goerli"
+	case 42161:
+		return "Arbitrum One"
+	case 421613:
+		return "Arbitrum Goerli"
+	default:
+		return fmt.Sprintf("Unknown Network (ChainID: %s)", chainID.String())
 	}
-	prefix := fmt.Sprintf("\x19Ethereum Signed Message:\n%d", len(message))
-	hash := crypto.Keccak256([]byte(prefix), message)
-	sig, err := crypto.Sign(hash, a.key)
-	if err != nil {
-		return "", err
-	}
-	return hexutil.Encode(sig), nil
 }

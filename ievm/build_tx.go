@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 // BuildLegacy 构造并签名 Legacy 交易
@@ -106,7 +105,9 @@ func BuildLegacy(acc *IAccount, to string, value *big.Int, data []byte,
 //
 // 返回：
 // - 已签名的 *types.Transaction；错误时返回详细提示（地址校验、建议/估算失败等）。
-func BuildDynamic(acc *IAccount, to string, value *big.Int, data []byte, gasLimit uint64, maxFeePerGas, maxPriorityFeePerGas *big.Int, nonceOpt *uint64) (*types.Transaction, error) {
+func BuildDynamic(acc *IAccount, to string, value *big.Int, data []byte,
+	gasLimit uint64, maxFeePerGas, maxPriorityFeePerGas *big.Int,
+	nonceOpt *uint64) (*types.Transaction, error) {
 
 	if acc == nil || acc.EInnerClient == nil {
 		return nil, fmt.Errorf("client 未初始化")
@@ -193,14 +194,6 @@ func SendContractMethod(
 		return nil, err
 	}
 	return signed, nil
-}
-
-// SignTypedData 对 EIP-712 进行签名
-func SignTypedData(hashToSign []byte, acc *IAccount) ([]byte, error) {
-	if len(hashToSign) != 32 {
-		return nil, fmt.Errorf("hash size must be 32")
-	}
-	return crypto.Sign(hashToSign, acc.key)
 }
 
 // PreflightTx 在发送前模拟交易，尝试预测是否会失败（revert/无余额/参数错误等）

@@ -6,10 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
-
-	"github.com/go-resty/resty/v2"
 )
-
 
 // convertToStringMap 将map[string]any转换为map[string]string
 func convertToStringMap(data map[string]any) map[string]string {
@@ -22,7 +19,9 @@ func convertToStringMap(data map[string]any) map[string]string {
 
 // updateCookiesFromResponse 从响应中更新Cookies
 func updateCookiesFromResponse(cookies *map[string]string,
-	resp *resty.Response) {
+	resp *http.Response) (ckList []*http.Cookie) {
+
+	ckList = []*http.Cookie{}
 	if cookies == nil {
 		return
 	}
@@ -33,21 +32,23 @@ func updateCookiesFromResponse(cookies *map[string]string,
 	}
 
 	// 从响应中提取Set-Cookie头
-	for _, cookieStr := range resp.Header()["Set-Cookie"] {
+	for _, cookieStr := range resp.Header["Set-Cookie"] {
 		if cookieStr == "" {
 			continue
 		}
 
 		// 解析cookie字符串
-		cookie := parseCookieString(cookieStr)
+		cookie := ParseCookieString(cookieStr)
 		if cookie != nil {
 			(*cookies)[cookie.Name] = cookie.Value
+			ckList = append(ckList, cookie)
 		}
 	}
+	return ckList
 }
 
 // parseCookieString 解析cookie字符串
-func parseCookieString(cookieStr string) *http.Cookie {
+func ParseCookieString(cookieStr string) *http.Cookie {
 	parts := strings.Split(cookieStr, ";")
 	if len(parts) == 0 {
 		return nil

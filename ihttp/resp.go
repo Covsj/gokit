@@ -1,11 +1,14 @@
 package ihttp
 
+import "net/http"
+
 // Response 响应结构
 type Response struct {
 	StatusCode int
 	Body       []byte
 	Text       string
 	Headers    map[string][]string
+	CookieList []*http.Cookie
 }
 
 // IsSuccess 检查响应是否成功

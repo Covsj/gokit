@@ -1,15 +1,21 @@
 package ihttp
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/Covsj/gokit/ilog"
-	"github.com/go-resty/resty/v2"
 )
 
 // Do 执行HTTP请求
@@ -43,13 +49,13 @@ func Do(opt *Opt) (*Response, error) {
 	}
 
 	// 准备请求体用于日志记录
-	var reqBody any
+	var logBody any
 	if len(opt.Data) > 0 {
-		reqBody = opt.Data
+		logBody = opt.Data
 	} else if opt.Json != nil {
-		reqBody = opt.Json
+		logBody = opt.Json
 	} else if len(opt.Files) > 0 {
-		reqBody = opt.Files
+		logBody = opt.Files
 	}
 
 	// 使用defer确保日志记录
@@ -61,7 +67,7 @@ func Do(opt *Opt) (*Response, error) {
 			args := []any{
 				"方法", opt.Method,
 				"URL", opt.URL,
-				"请求体", reqBody,
+				"请求体", logBody,
 				"请求Header", opt.Headers,
 				"耗时", elapsed.String(),
 			}
@@ -89,112 +95,145 @@ func Do(opt *Opt) (*Response, error) {
 		}
 	}()
 
-	// 创建resty客户端
-	client := resty.New()
-
-	// 设置超时
-	if opt.TimeOut == 0 {
-		opt.TimeOut = 600
+	// 创建HTTP客户端
+	client := &http.Client{
+		Timeout: time.Duration(opt.TimeOut) * time.Second,
 	}
-
-	client.SetTimeout(time.Duration(opt.TimeOut) * time.Second)
 
 	// 设置代理
-	proxy := opt.Proxy
-	// if proxy == "" {
-	// 	proxy = getProxyFromEnv(opt.URL)
-	// }
-	if proxy != "" {
-		client.SetProxy(proxy)
-	}
-
-	// 设置重定向
-	if !opt.AllowRedirects {
-		client.SetRedirectPolicy(resty.NoRedirectPolicy())
-	}
-
-	// 设置SSL验证
-	client.SetTLSClientConfig(&tls.Config{
-		InsecureSkipVerify: opt.SkipVerify,
-	})
-
-	// 设置请求头
-	if len(opt.Headers) > 0 {
-		client.SetHeaders(opt.Headers)
+	if opt.Proxy != "" {
+		proxyURL, err := url.Parse(opt.Proxy)
+		if err != nil {
+			return nil, fmt.Errorf("无效的代理URL: %v", err)
+		}
+		client.Transport = &http.Transport{
+			Proxy: http.ProxyURL(proxyURL),
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: opt.SkipVerify,
+			},
+		}
+	} else {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: opt.SkipVerify,
+			},
+		}
 	}
 
 	// 创建请求
-	req := client.R()
+	var reqBody io.Reader
+	var contentType string
+
+	// 设置请求体
+	if len(opt.Data) > 0 {
+		// Form数据
+		formData := url.Values{}
+		for k, v := range opt.Data {
+			formData.Set(k, fmt.Sprintf("%v", v))
+		}
+		reqBody = strings.NewReader(formData.Encode())
+		contentType = "application/x-www-form-urlencoded"
+	} else if opt.Json != nil {
+		// JSON数据
+		jsonData, err := json.Marshal(opt.Json)
+		if err != nil {
+			return nil, fmt.Errorf("JSON序列化失败: %v", err)
+		}
+		reqBody = bytes.NewReader(jsonData)
+		contentType = "application/json"
+	} else if len(opt.Files) > 0 {
+		// 文件上传
+		var buf bytes.Buffer
+		writer := multipart.NewWriter(&buf)
+
+		for fieldName, file := range opt.Files {
+			var fileReader io.Reader
+			var fileName string
+
+			if file.Reader != nil {
+				fileReader = file.Reader
+				fileName = file.FileName
+			} else if file.Path != "" {
+				fileObj, err := os.Open(file.Path)
+				if err != nil {
+					return nil, fmt.Errorf("打开文件失败: %v", err)
+				}
+				defer fileObj.Close()
+				fileReader = fileObj
+				fileName = file.FileName
+				if fileName == "" {
+					fileName = filepath.Base(file.Path)
+				}
+			}
+
+			if fileReader != nil {
+				part, err := writer.CreateFormFile(fieldName, fileName)
+				if err != nil {
+					return nil, fmt.Errorf("创建文件字段失败: %v", err)
+				}
+				_, err = io.Copy(part, fileReader)
+				if err != nil {
+					return nil, fmt.Errorf("复制文件内容失败: %v", err)
+				}
+			}
+		}
+
+		writer.Close()
+		reqBody = bytes.NewReader(buf.Bytes())
+		contentType = writer.FormDataContentType()
+	}
+
+	// 创建HTTP请求
+	req, err := http.NewRequest(method, opt.URL, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %v", err)
+	}
+
+	// 设置请求头
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	for k, v := range opt.Headers {
+		req.Header.Set(k, v)
+	}
 
 	// 设置Cookies
 	if opt.Cookies != nil && len(*opt.Cookies) > 0 {
 		for name, value := range *opt.Cookies {
-			req.SetCookie(&http.Cookie{
+			req.AddCookie(&http.Cookie{
 				Name:  name,
 				Value: value,
 			})
 		}
 	}
 
-	// 设置请求体
-	if len(opt.Data) > 0 {
-		req.SetFormData(convertToStringMap(opt.Data))
-	} else if opt.Json != nil {
-		req.SetBody(opt.Json)
-	} else if len(opt.Files) > 0 {
-		// 处理文件上传
-		for fieldName, file := range opt.Files {
-			if file.Reader != nil {
-				// 使用Reader
-				req.SetFileReader(fieldName, file.FileName, file.Reader)
-			} else if file.Path != "" {
-				// 使用文件路径
-				req.SetFile(fieldName, file.Path)
-			}
-		}
-	}
-
 	// 执行请求
-	var resp *resty.Response
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 
-	switch method {
-	case "GET":
-		resp, err = req.Get(opt.URL)
-	case "POST":
-		resp, err = req.Post(opt.URL)
-	case "PUT":
-		resp, err = req.Put(opt.URL)
-	case "PATCH":
-		resp, err = req.Patch(opt.URL)
-	case "DELETE":
-		resp, err = req.Delete(opt.URL)
-	case "HEAD":
-		resp, err = req.Head(opt.URL)
-	case "OPTIONS":
-		resp, err = req.Options(opt.URL)
-	case "CONNECT":
-		// CONNECT方法在resty中不直接支持，使用Execute方法
-		resp, err = req.Execute("CONNECT", opt.URL)
-	case "TRACE":
-		// TRACE方法在resty中不直接支持，使用Execute方法
-		resp, err = req.Execute("TRACE", opt.URL)
-	default:
-		resp, err = req.Get(opt.URL)
+	// 读取响应体
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体失败: %v", err)
 	}
 
 	// 处理响应
-	if resp != nil {
-		response = &Response{
-			StatusCode: resp.StatusCode(),
-			Body:       resp.Body(),
-			Text:       resp.String(),
-			Headers:    resp.Header(),
-		}
+	response = &Response{
+		StatusCode: resp.StatusCode,
+		Body:       body,
+		Text:       string(body),
+		Headers:    resp.Header,
+		CookieList: []*http.Cookie{},
+	}
 
-		// 自动更新Cookies
-		if opt.Cookies != nil {
-			updateCookiesFromResponse(opt.Cookies, resp)
-		}
+	// 自动更新Cookies
+	if opt.Cookies != nil {
+		cklist := updateCookiesFromResponse(opt.Cookies, resp)
+		
+		response.CookieList = cklist
 	}
 
 	// 处理响应体反序列化

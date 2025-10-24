@@ -38,11 +38,9 @@ type File struct {
 // NewOpt 创建新的请求配置
 func NewOpt() *Opt {
 	return &Opt{
-		AllowRedirects: true,
-		SkipVerify:     true,
-		FollowRedirect: true,
-		TimeOut:        30, // 默认30秒超时
-		Headers:        map[string]string{},
-		Cookies:        &map[string]string{},
+		SkipVerify: false,
+		TimeOut:    30, // 默认30秒超时
+		Headers:    map[string]string{},
+		Cookies:    &map[string]string{},
 	}
 }

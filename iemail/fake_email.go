@@ -10,7 +10,6 @@ import (
 	"github.com/Covsj/gokit/ihttp"
 	"github.com/Covsj/gokit/ilog"
 	"github.com/Covsj/gokit/iutil"
-	"github.com/Covsj/requests/models"
 )
 
 type FakeCli struct {
@@ -32,7 +31,7 @@ func (t *FakeCli) Disconnect() error {
 }
 
 func (t *FakeCli) dohttp(reqUrl, method string, rawBody map[string]any,
-	out any) (*models.Response, error) {
+	out any) (*ihttp.Response, error) {
 	headers := map[string]string{
 		"user-agent": iutil.Random(),
 	}
@@ -41,23 +40,20 @@ func (t *FakeCli) dohttp(reqUrl, method string, rawBody map[string]any,
 	}
 
 	var err error
-	var resp *models.Response
+	var resp *ihttp.Response
 
 	for i := 0; i < 3; i++ {
 		resp, err = ihttp.Do(&ihttp.Opt{
 			URL:     reqUrl,
 			Method:  method,
 			Data:    rawBody,
-			Cookies: t.CookieMap,
+			Cookies: &t.CookieMap,
 			Headers: headers,
 			RespOut: out,
 		})
 		if err != nil {
 			time.Sleep(2 * time.Second)
 			continue
-		}
-		for _, ck := range resp.Cookies {
-			t.CookieMap[ck.Name] = ck.Value
 		}
 		resBody := resp.Text
 		if resBody == "" {
@@ -129,8 +125,8 @@ func (t *FakeCli) GetEmailMsgs() (msgs []Msg, err error) {
 			"逻辑接口", "refresh", "Error", err.Error())
 		return nil, err
 	}
-	if resp != nil && resp.Ok() {
-		respBytes := resp.Content
+	if resp != nil && resp.IsSuccess() {
+		respBytes := resp.Body
 		err = safeJSONUnmarshal(respBytes, &out)
 		if err != nil {
 			ilog.Error("邮箱内部逻辑失败", "客户端类型", t.CliName(),

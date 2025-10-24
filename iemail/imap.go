@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Covsj/gokit/ihttp"
 	"github.com/Covsj/gokit/ilog"
-	"github.com/Covsj/requests/models"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/emersion/go-message/mail"
@@ -257,7 +257,7 @@ func (t *ImapCli) Data() map[string]any {
 		"folder":   t.Folder,
 	}
 }
-func (t *ImapCli) dohttp(reqUrl, method string, rawBody map[string]any, out any) (*models.Response, error) {
+func (t *ImapCli) dohttp(reqUrl, method string, rawBody map[string]any, out any) (*ihttp.Response, error) {
 	return nil, nil
 }
 

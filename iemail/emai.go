@@ -3,7 +3,7 @@ package iemail
 import (
 	"strings"
 
-	"github.com/Covsj/requests/models"
+	"github.com/Covsj/gokit/ihttp"
 )
 
 const (
@@ -37,7 +37,7 @@ type Msg struct {
 
 type IEmail interface {
 	CliName() string
-	dohttp(reqUrl, method string, rawBody map[string]any, out any) (*models.Response, error)
+	dohttp(reqUrl, method string, rawBody map[string]any, out any) (*ihttp.Response, error)
 	NewEmailCli(opt map[string]any) (IEmail, error)
 	GetDomains() ([]string, error)
 	GetEmailMsgs() ([]Msg, error)

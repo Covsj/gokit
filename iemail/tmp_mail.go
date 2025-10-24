@@ -8,7 +8,6 @@ import (
 	"github.com/Covsj/gokit/ihttp"
 	"github.com/Covsj/gokit/ilog"
 	"github.com/Covsj/gokit/iutil"
-	"github.com/Covsj/requests/models"
 )
 
 type TmpCli struct {
@@ -31,7 +30,7 @@ func (t *TmpCli) Disconnect() error {
 	return nil
 }
 
-func (t *TmpCli) dohttp(reqUrl, method string, rawBody map[string]any, out any) (*models.Response, error) {
+func (t *TmpCli) dohttp(reqUrl, method string, rawBody map[string]any, out any) (*ihttp.Response, error) {
 	headers := map[string]string{
 		"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
 	}
@@ -39,21 +38,16 @@ func (t *TmpCli) dohttp(reqUrl, method string, rawBody map[string]any, out any) 
 		headers["Authorization"] = "Bearer " + t.EmailToken
 	}
 	var err error
-	var resp *models.Response
+	var resp *ihttp.Response
 	resp, err = ihttp.Do(&ihttp.Opt{
 		URL:     reqUrl,
 		Method:  method,
 		Json:    rawBody,
-		Cookies: t.CookieMap,
+		Cookies: &t.CookieMap,
 		Headers: headers,
 		RespOut: out,
 	})
-	if err != nil {
-		return resp, err
-	}
-	for _, ck := range resp.Cookies {
-		t.CookieMap[ck.Name] = ck.Value
-	}
+
 	return resp, err
 }
 

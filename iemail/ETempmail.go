@@ -3,7 +3,6 @@ package iemail
 import (
 	"github.com/Covsj/gokit/ihttp"
 	"github.com/Covsj/gokit/ilog"
-	"github.com/Covsj/requests/models"
 )
 
 // https://etempmail.com/
@@ -26,29 +25,23 @@ func (t *ETempMailCli) Disconnect() error {
 	return nil
 }
 
-func (t *ETempMailCli) dohttp(reqUrl, method string, rawBody map[string]any, out any) (*models.Response, error) {
+func (t *ETempMailCli) dohttp(reqUrl, method string,
+	rawBody map[string]any, out any) (*ihttp.Response, error) {
 	headers := map[string]string{
 		"user-agent":       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
 		"x-requested-with": "XMLHttpRequest",
 	}
 	var err error
-	var resp *models.Response
+	var resp *ihttp.Response
+
 	resp, err = ihttp.Do(&ihttp.Opt{
 		URL:     reqUrl,
 		Method:  method,
 		Json:    rawBody,
-		Cookies: t.CookieMap,
+		Cookies: &t.CookieMap,
 		Headers: headers,
 		RespOut: out,
 	})
-	if err != nil {
-		return resp, err
-	}
-
-	for _, ck := range resp.Cookies {
-		t.CookieMap[ck.Name] = ck.Value
-	}
-
 	return resp, err
 }
 

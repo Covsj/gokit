@@ -10,6 +10,7 @@ require (
 	github.com/emersion/go-imap v1.2.1
 	github.com/emersion/go-message v0.18.2
 	github.com/ethereum/go-ethereum v1.16.3
+	github.com/go-resty/resty/v2 v2.16.5
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 	github.com/tyler-smith/go-bip32 v1.0.0

@@ -11,7 +11,7 @@ type Opt struct {
 
 	// 请求体类型 - 互斥使用
 	Data  map[string]any  // Form数据
-	Json  map[string]any  // JSON数据
+	Json  any             // JSON格式数据
 	Files map[string]File // 文件上传
 
 	Headers map[string]string

@@ -32,7 +32,7 @@ func Do(opt *Opt) (*Response, error) {
 	if len(opt.Data) > 0 {
 		bodyKinds++
 	}
-	if len(opt.Json) > 0 {
+	if opt.Json != nil {
 		bodyKinds++
 	}
 	if len(opt.Files) > 0 {
@@ -46,7 +46,7 @@ func Do(opt *Opt) (*Response, error) {
 	var reqBody any
 	if len(opt.Data) > 0 {
 		reqBody = opt.Data
-	} else if len(opt.Json) > 0 {
+	} else if opt.Json != nil {
 		reqBody = opt.Json
 	} else if len(opt.Files) > 0 {
 		reqBody = opt.Files
@@ -96,6 +96,7 @@ func Do(opt *Opt) (*Response, error) {
 	if opt.TimeOut == 0 {
 		opt.TimeOut = 600
 	}
+
 	client.SetTimeout(time.Duration(opt.TimeOut) * time.Second)
 
 	// 设置代理
@@ -138,7 +139,7 @@ func Do(opt *Opt) (*Response, error) {
 	// 设置请求体
 	if len(opt.Data) > 0 {
 		req.SetFormData(convertToStringMap(opt.Data))
-	} else if len(opt.Json) > 0 {
+	} else if opt.Json != nil {
 		req.SetBody(opt.Json)
 	} else if len(opt.Files) > 0 {
 		// 处理文件上传

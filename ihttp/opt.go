@@ -1,13 +1,18 @@
 package ihttp
 
-import "io"
+import (
+	"io"
+	"net/http"
+)
 
 // Opt 请求配置选项
 type Opt struct {
-	URL     string
-	Proxy   string
+	URL string
+
 	Method  string
 	TimeOut int
+
+	HttpCLi *http.Client
 
 	// 请求体类型 - 互斥使用
 	Data  map[string]any  // Form数据
@@ -18,11 +23,6 @@ type Opt struct {
 	Cookies *map[string]string // 使用指针类型，支持自动更新
 
 	RespOut any // 响应体反序列化目标
-
-	// 安全设置
-	AllowRedirects bool // 是否允许重定向，默认true
-	SkipVerify     bool // 是否跳过验证SSL证书，默认false
-	FollowRedirect bool // 是否跟随重定向，默认true
 
 	NotLog bool // 是否不记录日志
 }
@@ -38,9 +38,9 @@ type File struct {
 // NewOpt 创建新的请求配置
 func NewOpt() *Opt {
 	return &Opt{
-		SkipVerify: false,
-		TimeOut:    30, // 默认30秒超时
-		Headers:    map[string]string{},
-		Cookies:    &map[string]string{},
+		HttpCLi: &http.Client{},
+		TimeOut: 30, // 默认30秒超时
+		Headers: map[string]string{},
+		Cookies: &map[string]string{},
 	}
 }

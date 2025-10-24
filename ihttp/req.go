@@ -2,7 +2,6 @@ package ihttp
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -95,28 +94,14 @@ func Do(opt *Opt) (*Response, error) {
 		}
 	}()
 
-	// 创建HTTP客户端
-	client := &http.Client{
-		Timeout: time.Duration(opt.TimeOut) * time.Second,
-	}
+	var client *http.Client
 
-	// 设置代理
-	if opt.Proxy != "" {
-		proxyURL, err := url.Parse(opt.Proxy)
-		if err != nil {
-			return nil, fmt.Errorf("无效的代理URL: %v", err)
-		}
-		client.Transport = &http.Transport{
-			Proxy: http.ProxyURL(proxyURL),
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: opt.SkipVerify,
-			},
-		}
+	if opt.HttpCLi != nil {
+		client = opt.HttpCLi
 	} else {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: opt.SkipVerify,
-			},
+		// 创建HTTP客户端
+		client = &http.Client{
+			Timeout: time.Duration(opt.TimeOut) * time.Second,
 		}
 	}
 
@@ -232,7 +217,7 @@ func Do(opt *Opt) (*Response, error) {
 	// 自动更新Cookies
 	if opt.Cookies != nil {
 		cklist := updateCookiesFromResponse(opt.Cookies, resp)
-		
+
 		response.CookieList = cklist
 	}
 

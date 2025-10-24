@@ -2,7 +2,9 @@ package ihttp
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
+	"time"
 )
 
 func TestHttp(t *testing.T) {
@@ -16,8 +18,9 @@ func TestHttp(t *testing.T) {
 	opt.Headers = map[string]string{
 		"User-Agent": "ihttp-test",
 	}
-	opt.Proxy = "http://127.0.0.1:7890"
-
+	opt.HttpCLi = &http.Client{
+		Timeout: 30 * time.Second,
+	}
 	resp, err := Get("https://clob.polymarket.com/book?token_id=70224002415726915146697406828863644162763565870559027191380082229342088681891", opt)
 
 	if err != nil {

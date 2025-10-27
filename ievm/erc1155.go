@@ -12,22 +12,25 @@ const ERC1155ABI = `[{"constant":true,"inputs":[{"name":"account","type":"addres
 
 // ERC1155 轻量封装
 type ERC1155 struct {
-	Address string
-	IAcc    *IAccount
+	TokenContract string
+	IAcc          *IAccount
 }
 
-func NewERC1155(addr string, acc *IAccount) *ERC1155 {
+func NewERC1155(tokenContract string, acc *IAccount) *ERC1155 {
 	return &ERC1155{
-		Address: addr,
-		IAcc:    acc,
+		TokenContract: tokenContract,
+		IAcc:          acc,
 	}
 }
 
 // 只读方法
 
 func (e *ERC1155) BalanceOf(account string, id *big.Int) (*big.Int, error) {
-	data, _ := Pack(ERC1155ABI, "balanceOf", common.HexToAddress(account), id)
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC1155ABI, "balanceOf", common.HexToAddress(account), id)
+	if err != nil {
+		return nil, err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +53,11 @@ func (e *ERC1155) BalanceOfBatch(accounts []string, ids []*big.Int) ([]*big.Int,
 		addresses[i] = common.HexToAddress(addr)
 	}
 
-	data, _ := Pack(ERC1155ABI, "balanceOfBatch", addresses, ids)
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC1155ABI, "balanceOfBatch", addresses, ids)
+	if err != nil {
+		return nil, err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +74,11 @@ func (e *ERC1155) BalanceOfBatch(accounts []string, ids []*big.Int) ([]*big.Int,
 }
 
 func (e *ERC1155) URI(id *big.Int) (string, error) {
-	data, _ := Pack(ERC1155ABI, "uri", id)
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC1155ABI, "uri", id)
+	if err != nil {
+		return "", err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return "", err
 	}
@@ -86,8 +95,11 @@ func (e *ERC1155) URI(id *big.Int) (string, error) {
 }
 
 func (e *ERC1155) IsApprovedForAll(account, operator string) (bool, error) {
-	data, _ := Pack(ERC1155ABI, "isApprovedForAll", common.HexToAddress(account), common.HexToAddress(operator))
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC1155ABI, "isApprovedForAll", common.HexToAddress(account), common.HexToAddress(operator))
+	if err != nil {
+		return false, err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return false, err
 	}
@@ -106,37 +118,37 @@ func (e *ERC1155) IsApprovedForAll(account, operator string) (bool, error) {
 // 写入方法
 
 func (e *ERC1155) SafeTransferFrom(from, to string, id, amount *big.Int, data []byte) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC1155ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC1155ABI,
 		"safeTransferFrom", big.NewInt(0), common.HexToAddress(from), common.HexToAddress(to), id, amount, data)
 }
 
 func (e *ERC1155) SafeBatchTransferFrom(from, to string, ids, amounts []*big.Int, data []byte) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC1155ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC1155ABI,
 		"safeBatchTransferFrom", big.NewInt(0), common.HexToAddress(from), common.HexToAddress(to), ids, amounts, data)
 }
 
 func (e *ERC1155) SetApprovalForAll(operator string, approved bool) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC1155ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC1155ABI,
 		"setApprovalForAll", big.NewInt(0), common.HexToAddress(operator), approved)
 }
 
 func (e *ERC1155) Mint(to string, id, amount *big.Int, data []byte) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC1155ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC1155ABI,
 		"mint", big.NewInt(0), common.HexToAddress(to), id, amount, data)
 }
 
 func (e *ERC1155) MintBatch(to string, ids, amounts []*big.Int, data []byte) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC1155ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC1155ABI,
 		"mintBatch", big.NewInt(0), common.HexToAddress(to), ids, amounts, data)
 }
 
 func (e *ERC1155) Burn(from string, id, amount *big.Int) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC1155ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC1155ABI,
 		"burn", big.NewInt(0), common.HexToAddress(from), id, amount)
 }
 
 func (e *ERC1155) BurnBatch(from string, ids, amounts []*big.Int) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC1155ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC1155ABI,
 		"burnBatch", big.NewInt(0), common.HexToAddress(from), ids, amounts)
 }
 

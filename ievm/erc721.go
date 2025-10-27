@@ -12,20 +12,23 @@ const ERC721ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name
 
 // ERC721 轻量封装
 type ERC721 struct {
-	Address string
-	IAcc    *IAccount
+	TokenContract string
+	IAcc          *IAccount
 }
 
-func NewERC721(addr string, acc *IAccount) *ERC721 {
+func NewERC721(tokenContract string, acc *IAccount) *ERC721 {
 	return &ERC721{
-		Address: addr,
-		IAcc:    acc,
+		TokenContract: tokenContract,
+		IAcc:          acc,
 	}
 }
 
 func (e *ERC721) Name() (string, error) {
-	data, _ := Pack(ERC721ABI, "name")
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC721ABI, "name")
+	if err != nil {
+		return "", err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return "", err
 	}
@@ -42,8 +45,11 @@ func (e *ERC721) Name() (string, error) {
 }
 
 func (e *ERC721) Symbol() (string, error) {
-	data, _ := Pack(ERC721ABI, "symbol")
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC721ABI, "symbol")
+	if err != nil {
+		return "", err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return "", err
 	}
@@ -60,8 +66,11 @@ func (e *ERC721) Symbol() (string, error) {
 }
 
 func (e *ERC721) TotalSupply() (*big.Int, error) {
-	data, _ := Pack(ERC721ABI, "totalSupply")
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC721ABI, "totalSupply")
+	if err != nil {
+		return nil, err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +87,11 @@ func (e *ERC721) TotalSupply() (*big.Int, error) {
 }
 
 func (e *ERC721) OwnerOf(tokenId *big.Int) (string, error) {
-	data, _ := Pack(ERC721ABI, "ownerOf", tokenId)
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC721ABI, "ownerOf", tokenId)
+	if err != nil {
+		return "", err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return "", err
 	}
@@ -96,8 +108,11 @@ func (e *ERC721) OwnerOf(tokenId *big.Int) (string, error) {
 }
 
 func (e *ERC721) BalanceOf(owner string) (*big.Int, error) {
-	data, _ := Pack(ERC721ABI, "balanceOf", common.HexToAddress(owner))
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC721ABI, "balanceOf", common.HexToAddress(owner))
+	if err != nil {
+		return nil, err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +129,11 @@ func (e *ERC721) BalanceOf(owner string) (*big.Int, error) {
 }
 
 func (e *ERC721) TokenURI(tokenId *big.Int) (string, error) {
-	data, _ := Pack(ERC721ABI, "tokenURI", tokenId)
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC721ABI, "tokenURI", tokenId)
+	if err != nil {
+		return "", err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return "", err
 	}
@@ -132,8 +150,11 @@ func (e *ERC721) TokenURI(tokenId *big.Int) (string, error) {
 }
 
 func (e *ERC721) GetApproved(tokenId *big.Int) (string, error) {
-	data, _ := Pack(ERC721ABI, "getApproved", tokenId)
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC721ABI, "getApproved", tokenId)
+	if err != nil {
+		return "", err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return "", err
 	}
@@ -150,8 +171,11 @@ func (e *ERC721) GetApproved(tokenId *big.Int) (string, error) {
 }
 
 func (e *ERC721) IsApprovedForAll(owner, operator string) (bool, error) {
-	data, _ := Pack(ERC721ABI, "isApprovedForAll", common.HexToAddress(owner), common.HexToAddress(operator))
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC721ABI, "isApprovedForAll", common.HexToAddress(owner), common.HexToAddress(operator))
+	if err != nil {
+		return false, err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return false, err
 	}
@@ -170,31 +194,31 @@ func (e *ERC721) IsApprovedForAll(owner, operator string) (bool, error) {
 // 写入方法
 
 func (e *ERC721) Transfer(to string, tokenId *big.Int) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC721ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC721ABI,
 		"transfer", big.NewInt(0), common.HexToAddress(to), tokenId)
 }
 
 func (e *ERC721) TransferFrom(from, to string, tokenId *big.Int) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC721ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC721ABI,
 		"transferFrom", big.NewInt(0), common.HexToAddress(from), common.HexToAddress(to), tokenId)
 }
 
 func (e *ERC721) Approve(approved string, tokenId *big.Int) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC721ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC721ABI,
 		"approve", big.NewInt(0), common.HexToAddress(approved), tokenId)
 }
 
 func (e *ERC721) SetApprovalForAll(operator string, approved bool) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC721ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC721ABI,
 		"setApprovalForAll", big.NewInt(0), common.HexToAddress(operator), approved)
 }
 
 func (e *ERC721) SafeTransferFrom(to string, tokenId *big.Int) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC721ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC721ABI,
 		"safeTransferFrom", big.NewInt(0), common.HexToAddress(to), tokenId)
 }
 
 func (e *ERC721) SafeTransferFromWithFrom(from, to string, tokenId *big.Int) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC721ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC721ABI,
 		"safeTransferFrom", big.NewInt(0), common.HexToAddress(from), common.HexToAddress(to), tokenId)
 }

@@ -101,7 +101,7 @@ const (
 	ColorError = 91 // 亮红色 - 适合错误信息
 
 	// 特殊用途颜色
-	ColorTimestamp  = 95 // 亮紫色 - 适合时间戳
+	ColorTimestamp  = 90 // 亮黑色 - 适合时间戳
 	ColorCaller     = 96 // 亮青色 - 适合调用信息
 	ColorMessage    = 94 // 蓝色 - 适合消息内容
 	ColorFieldKey   = 95 // 亮紫色 - 适合字段名

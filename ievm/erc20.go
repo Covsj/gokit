@@ -12,20 +12,23 @@ const ERC20ABI = `[{"constant":true,"inputs":[],"name":"name","outputs":[{"name"
 
 // ERC20 轻量封装
 type ERC20 struct {
-	Address string
-	IAcc    *IAccount
+	TokenContract string
+	IAcc          *IAccount
 }
 
-func NewERC20(addr string, acc *IAccount) *ERC20 {
+func NewERC20(tokenContract string, acc *IAccount) *ERC20 {
 	return &ERC20{
-		Address: addr,
-		IAcc:    acc,
+		TokenContract: tokenContract,
+		IAcc:          acc,
 	}
 }
 
 func (e *ERC20) Erc20Name() (string, error) {
-	data, _ := Pack(ERC20ABI, "name")
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC20ABI, "name")
+	if err != nil {
+		return "", err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return "", err
 	}
@@ -42,8 +45,11 @@ func (e *ERC20) Erc20Name() (string, error) {
 }
 
 func (e *ERC20) Symbol() (string, error) {
-	data, _ := Pack(ERC20ABI, "symbol")
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC20ABI, "symbol")
+	if err != nil {
+		return "", err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return "", err
 	}
@@ -60,8 +66,11 @@ func (e *ERC20) Symbol() (string, error) {
 }
 
 func (e *ERC20) Decimals() (uint8, error) {
-	data, _ := Pack(ERC20ABI, "decimals")
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC20ABI, "decimals")
+	if err != nil {
+		return 0, err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return 0, err
 	}
@@ -78,8 +87,11 @@ func (e *ERC20) Decimals() (uint8, error) {
 }
 
 func (e *ERC20) TotalSupply() (*big.Int, error) {
-	data, _ := Pack(ERC20ABI, "totalSupply")
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC20ABI, "totalSupply")
+	if err != nil {
+		return nil, err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return nil, err
 	}
@@ -96,8 +108,11 @@ func (e *ERC20) TotalSupply() (*big.Int, error) {
 }
 
 func (e *ERC20) BalanceOf(owner string) (*big.Int, error) {
-	data, _ := Pack(ERC20ABI, "balanceOf", common.HexToAddress(owner))
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC20ABI, "balanceOf", common.HexToAddress(owner))
+	if err != nil {
+		return nil, err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return nil, err
 	}
@@ -114,8 +129,11 @@ func (e *ERC20) BalanceOf(owner string) (*big.Int, error) {
 }
 
 func (e *ERC20) Allowance(owner, spender string) (*big.Int, error) {
-	data, _ := Pack(ERC20ABI, "allowance", common.HexToAddress(owner), common.HexToAddress(spender))
-	out, err := e.IAcc.OnlyReadCall(e.Address, data)
+	data, err := Pack(ERC20ABI, "allowance", common.HexToAddress(owner), common.HexToAddress(spender))
+	if err != nil {
+		return nil, err
+	}
+	out, err := e.IAcc.OnlyReadCall(e.TokenContract, data)
 	if err != nil {
 		return nil, err
 	}
@@ -132,16 +150,16 @@ func (e *ERC20) Allowance(owner, spender string) (*big.Int, error) {
 }
 
 func (e *ERC20) Transfer(to string, amount *big.Int) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC20ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC20ABI,
 		"transfer", big.NewInt(0), common.HexToAddress(to), amount)
 }
 
 func (e *ERC20) TransferFrom(from, to string, amount *big.Int) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC20ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC20ABI,
 		"transferFrom", big.NewInt(0), common.HexToAddress(from), common.HexToAddress(to), amount)
 }
 
 func (e *ERC20) Approve(spender string, amount *big.Int) (*types.Transaction, error) {
-	return SendContractMethod(e.IAcc, e.Address, ERC20ABI,
+	return SendContractMethod(e.IAcc, e.TokenContract, ERC20ABI,
 		"approve", big.NewInt(0), common.HexToAddress(spender), amount)
 }

@@ -72,58 +72,20 @@ const (
 	FormatText = "text"
 )
 
-// ANSI 颜色代码常量 - 方便用户配置时参考
-const (
-	// 基础颜色
-	ColorBlack   = 30 // 黑色
-	ColorRed     = 31 // 红色
-	ColorGreen   = 32 // 绿色
-	ColorYellow  = 33 // 黄色
-	ColorBlue    = 34 // 蓝色
-	ColorMagenta = 35 // 紫色
-	ColorCyan    = 36 // 青色
-	ColorWhite   = 37 // 白色
-
-	// 亮色 (高亮)
-	ColorBrightBlack   = 90 // 亮黑色
-	ColorBrightRed     = 91 // 亮红色
-	ColorBrightGreen   = 92 // 亮绿色
-	ColorBrightYellow  = 93 // 亮黄色
-	ColorBrightBlue    = 94 // 亮蓝色
-	ColorBrightMagenta = 95 // 亮紫色
-	ColorBrightCyan    = 96 // 亮青色
-	ColorBrightWhite   = 97 // 亮白色
-
-	// 常用组合颜色
-	ColorDebug = 94 // 亮蓝色 - 适合调试信息
-	ColorInfo  = 92 // 亮绿色 - 适合一般信息
-	ColorWarn  = 93 // 亮黄色 - 适合警告信息
-	ColorError = 91 // 亮红色 - 适合错误信息
-
-	// 特殊用途颜色
-	ColorTimestamp  = 90 // 亮黑色 - 适合时间戳
-	ColorCaller     = 96 // 亮青色 - 适合调用信息
-	ColorMessage    = 94 // 蓝色 - 适合消息内容
-	ColorFieldKey   = 95 // 亮紫色 - 适合字段名
-	ColorFieldValue = 33 // 黄色 - 适合字段值
-)
+type LogColorConfig struct {
+	// 主要字段
+	Timestamp  func(string) string
+	LogLevel   func(string) string
+	StackTrace func(string) string
+	MessageKey func(string) string
+	FieldKey   func(string) string
+	FieldValue func(string) string
+}
 
 // 日志配置结构体
 type LogConfig struct {
 	// 颜色配置
-	Colors struct {
-		Level struct {
-			Debug int // 调试级别颜色
-			Info  int // 信息级别颜色
-			Warn  int // 警告级别颜色
-			Error int // 错误级别颜色
-		}
-		Timestamp  int // 时间戳颜色
-		Caller     int // 调用信息颜色
-		Message    int // 消息颜色
-		FieldKey   int // 字段名颜色
-		FieldValue int // 字段值颜色
-	}
+	Colors LogColorConfig
 
 	// 调用栈配置
 	Caller struct {
@@ -145,35 +107,40 @@ type LogConfig struct {
 
 // 默认配置
 var currentConfig = LogConfig{
-	Colors: struct {
-		Level struct {
-			Debug int
-			Info  int
-			Warn  int
-			Error int
-		}
-		Timestamp  int
-		Caller     int
-		Message    int
-		FieldKey   int
-		FieldValue int
-	}{
-		Level: struct {
-			Debug int
-			Info  int
-			Warn  int
-			Error int
-		}{
-			Debug: ColorDebug, // 亮蓝色
-			Info:  ColorInfo,  // 亮绿色
-			Warn:  ColorWarn,  // 亮黄色
-			Error: ColorError, // 亮红色
+	Colors: LogColorConfig{
+		// 调用时间 - 中性灰色，不引人注目但可读
+		Timestamp: func(text string) string {
+			return RGBForeground(140, 140, 140, text) // 中性灰
 		},
-		Timestamp:  ColorTimestamp,  // 亮紫色
-		Caller:     ColorCaller,     // 亮青色
-		Message:    ColorMessage,    // 蓝色
-		FieldKey:   ColorFieldKey,   // 亮紫色
-		FieldValue: ColorFieldValue, // 黄色
+		// 日志级别 - 根据级别动态着色
+		LogLevel: func(level string) string {
+			colors := map[string]struct{ r, g, b int }{
+				"DBUG": {86, 156, 214},  // 柔和的蓝色
+				"INFO": {78, 201, 176},  // 清新的绿色
+				"WARN": {220, 220, 170}, // 温和的黄色
+				"ERRO": {255, 128, 128}, // 醒目的红色
+			}
+			if color, exists := colors[level]; exists {
+				return RGBForeground(color.r, color.g, color.b, level)
+			}
+			return RGBForeground(200, 200, 200, level) // 默认灰色
+		},
+		// 调用堆栈 - 深紫色，表示技术细节
+		StackTrace: func(text string) string {
+			return RGBForeground(128, 128, 255, text) // 淡紫色
+		},
+		// 日志消息key - 重要的蓝色
+		MessageKey: func(text string) string {
+			return RGBForeground(86, 156, 214, text) // 专业蓝
+		},
+		// 日志其他字段key - 温暖的橙色
+		FieldKey: func(text string) string {
+			return RGBForeground(255, 158, 71, text) // 橙色
+		},
+		// 日志其他字段value - 柔和的青色
+		FieldValue: func(text string) string {
+			return RGBForeground(78, 201, 176, text) // 青色
+		},
 	},
 	Caller: struct {
 		SkipDepth int
@@ -182,7 +149,7 @@ var currentConfig = LogConfig{
 		SkipDepth: 3, // 默认跳过3层调用栈
 		Enabled:   true,
 	},
-	TimestampFormat: "01-02 15:04:05",
+	TimestampFormat: "01-02 15:04:05.000",
 	LevelDisplay: struct {
 		Debug string
 		Info  string
@@ -225,12 +192,13 @@ func (f *customTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	// 获取调用信息
 	caller := ""
 	if c, ok := entry.Data["caller"]; ok {
-		caller = fmt.Sprintf("[%s]", c)
+		caller = fmt.Sprintf("%s", c)
 		delete(entry.Data, "caller")
 	}
 
 	// 格式化级别和时间戳
 	timestamp := entry.Time.Format(f.TimestampFormat)
+
 	level := strings.ToUpper(entry.Level.String())
 
 	// 使用配置中的级别显示文本
@@ -243,21 +211,6 @@ func (f *customTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 		level = f.config.LevelDisplay.Warn
 	case "ERROR":
 		level = f.config.LevelDisplay.Error
-	}
-
-	// 根据日志级别选择颜色 - 使用配置中的颜色
-	var levelColor int
-	switch entry.Level {
-	case logrus.DebugLevel:
-		levelColor = f.config.Colors.Level.Debug
-	case logrus.InfoLevel:
-		levelColor = f.config.Colors.Level.Info
-	case logrus.WarnLevel:
-		levelColor = f.config.Colors.Level.Warn
-	case logrus.ErrorLevel:
-		levelColor = f.config.Colors.Level.Error
-	default:
-		levelColor = 37 // 白色
 	}
 
 	// 构建额外字段的字符串
@@ -275,9 +228,10 @@ func (f *customTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 				for _, field := range fieldsList {
 					if field.key != "caller" && field.key != "_ordered_fields" {
 						formattedValue := formatValue(field.value)
-						pairs = append(pairs, fmt.Sprintf("\x1b[%dm%s\x1b[0m=\x1b[%dm%s\x1b[0m",
-							f.config.Colors.FieldKey, field.key, // 字段名使用配置的颜色
-							f.config.Colors.FieldValue, formattedValue)) // 字段值使用配置的颜色
+						pairs = append(pairs, fmt.Sprintf("%s: %s",
+							f.config.Colors.FieldKey(field.key),         // 字段名使用配置的颜色
+							f.config.Colors.FieldValue(formattedValue)), // 字段值使用配置的颜色
+						)
 					}
 				}
 			}
@@ -291,24 +245,25 @@ func (f *customTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 			for _, k := range keys {
 				if k != "caller" { // 跳过caller字段，因为已经单独处理
 					formattedValue := formatValue(entry.Data[k])
-					pairs = append(pairs, fmt.Sprintf("\x1b[%dm%s\x1b[0m=\x1b[%dm%s\x1b[0m",
-						f.config.Colors.FieldKey, k, // 字段名使用配置的颜色
-						f.config.Colors.FieldValue, formattedValue)) // 字段值使用配置的颜色
+					pairs = append(pairs, fmt.Sprintf("%s: %s",
+						f.config.Colors.FieldKey(k),                 // 字段名使用配置的颜色
+						f.config.Colors.FieldValue(formattedValue)), // 字段值使用配置的颜色
+					)
 				}
 			}
 		}
 
 		if len(pairs) > 0 {
-			fields = " │ " + strings.Join(pairs, " ")
+			fields = "- " + strings.Join(pairs, " | ")
 		}
 	}
 
 	// 修改消息格式，添加字段信息 - 更美观的布局
-	msg := fmt.Sprintf("\x1b[%dm%s\x1b[0m \x1b[%dm%s\x1b[0m \x1b[%dm%s\x1b[0m \x1b[%dm%s\x1b[0m%s\n",
-		levelColor, level, // 日志级别颜色
-		f.config.Colors.Timestamp, timestamp, // 使用配置的时间戳颜色
-		f.config.Colors.Caller, caller, // 使用配置的调用信息颜色
-		f.config.Colors.Message, entry.Message, // 使用配置的消息颜色
+	msg := fmt.Sprintf("%s %s %s %s %s\n",
+		f.config.Colors.Timestamp(timestamp),      // 使用配置的时间戳颜色
+		f.config.Colors.LogLevel(level),           // 日志级别颜色
+		f.config.Colors.StackTrace(caller),        // 使用配置的调用信息颜色
+		f.config.Colors.MessageKey(entry.Message), // 使用配置的消息颜色
 		fields, // 添加额外字段
 	)
 
@@ -349,6 +304,13 @@ func formatValue(v any) string {
 		str = str[1 : len(str)-1]
 	}
 	return str
+}
+
+func SetColors(colorCfg LogColorConfig) {
+	currentConfig.Colors = colorCfg
+	// 重新设置格式化器以应用新配置
+	SetLogFormat(Log, FormatText)
+	SetLogFormat(ErrLog, FormatText)
 }
 
 func SetLogFormat(log *logrus.Logger, format string) {
@@ -410,27 +372,6 @@ func GetConfig() LogConfig {
 	configMutex.RLock()
 	defer configMutex.RUnlock()
 	return currentConfig
-}
-
-// SetColors 设置颜色配置
-func SetColors(levelColors struct {
-	Debug int
-	Info  int
-	Warn  int
-	Error int
-}, timestamp, caller, message, fieldKey, fieldValue int) {
-	currentConfig.Colors.Level.Debug = levelColors.Debug
-	currentConfig.Colors.Level.Info = levelColors.Info
-	currentConfig.Colors.Level.Warn = levelColors.Warn
-	currentConfig.Colors.Level.Error = levelColors.Error
-	currentConfig.Colors.Timestamp = timestamp
-	currentConfig.Colors.Caller = caller
-	currentConfig.Colors.Message = message
-	currentConfig.Colors.FieldKey = fieldKey
-	currentConfig.Colors.FieldValue = fieldValue
-	// 重新设置格式化器以应用新配置
-	SetLogFormat(Log, FormatText)
-	SetLogFormat(ErrLog, FormatText)
 }
 
 // SetCallerConfig 设置调用栈配置
@@ -592,40 +533,7 @@ func DebugF(format string, args ...any) {
 	logWithFieldsFormat(Log, logrus.DebugLevel, format, args...)
 }
 
-type Logger struct {
-	*logrus.Logger
-	file *os.File
-}
-
-func NewLogger(level logrus.Level, format logrus.Formatter, outputFilePath string) (*Logger, error) {
-	l := &Logger{
-		Logger: logrus.New(),
-	}
-	l.SetLevel(level)
-
-	if format == nil {
-		l.SetFormatter(&logrus.JSONFormatter{})
-	} else {
-		l.SetFormatter(format)
-	}
-
-	if outputFilePath != "" {
-		file, err := os.OpenFile(outputFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err != nil {
-			return nil, err
-		}
-		l.SetOutput(file)
-		l.file = file
-	} else {
-		l.SetOutput(os.Stdout)
-	}
-
-	return l, nil
-}
-
-func (l *Logger) Close() error {
-	if l.file != nil {
-		return l.file.Close()
-	}
-	return nil
+// RGB 前景色
+func RGBForeground(r, g, b int, text string) string {
+	return fmt.Sprintf("\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, text)
 }

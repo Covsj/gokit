@@ -100,9 +100,11 @@ func Do(opt *Opt) (*Response, error) {
 		client = opt.HttpCLi
 	} else {
 		// 创建HTTP客户端
-		client = &http.Client{
-			Timeout: time.Duration(opt.TimeOut) * time.Second,
-		}
+		client = &http.Client{}
+	}
+
+	if opt.TimeOut > 0 {
+		client.Timeout = time.Duration(opt.TimeOut) * time.Second
 	}
 
 	// 创建请求

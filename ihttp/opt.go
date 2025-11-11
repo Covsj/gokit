@@ -3,6 +3,7 @@ package ihttp
 import (
 	"io"
 	"net/http"
+	"time"
 )
 
 // Opt 请求配置选项
@@ -38,7 +39,9 @@ type File struct {
 // NewOpt 创建新的请求配置
 func NewOpt() *Opt {
 	return &Opt{
-		HttpCLi: &http.Client{},
+		HttpCLi: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 		TimeOut: 30, // 默认30秒超时
 		Headers: map[string]string{},
 		Cookies: &map[string]string{},

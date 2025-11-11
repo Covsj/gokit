@@ -517,7 +517,13 @@ func InfoF(format string, args ...any) {
 	logWithFieldsFormat(Log, logrus.InfoLevel, format, args...)
 }
 
-func ERROR(key string, err error, args ...any) {
+func Success(key string, args ...any) {
+	if !strings.HasPrefix(key, "✅") {
+		key = "✅ " + key
+	}
+	logWithFields(Log, logrus.InfoLevel, key, args...)
+}
+func Failed(key string, err error, args ...any) {
 	if !strings.HasPrefix(key, "❌") {
 		key = "❌ " + key
 	}

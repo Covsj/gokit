@@ -508,27 +508,55 @@ func logWithFieldsFormat(logger *logrus.Logger, level logrus.Level, format strin
 		logger.WithFields(fields).Infof(format, args...)
 	}
 }
+
 func Info(key any, args ...any) {
 	logWithFields(Log, logrus.InfoLevel, key, args...)
 }
+
 func InfoF(format string, args ...any) {
 	logWithFieldsFormat(Log, logrus.InfoLevel, format, args...)
 }
-func Error(key string, args ...any) {
+
+func ERROR(key string, err error, args ...any) {
+	if !strings.HasPrefix(key, "❌") {
+		key = "❌ " + key
+	}
+	args = append([]any{"错误信息", err.Error()}, args...)
 	logWithFields(ErrLog, logrus.ErrorLevel, key, args...)
 }
+
+func Error(key string, args ...any) {
+	if !strings.HasPrefix(key, "❌") {
+		key = "❌ " + key
+	}
+	logWithFields(ErrLog, logrus.ErrorLevel, key, args...)
+}
+
 func ErrorF(format string, args ...any) {
+	if !strings.HasPrefix(format, "❌") {
+		format = "❌ " + format
+	}
 	logWithFieldsFormat(ErrLog, logrus.ErrorLevel, format, args...)
 }
+
 func Warn(key string, args ...any) {
+	if !strings.HasPrefix(key, "❗") {
+		key = "❗" + key
+	}
 	logWithFields(Log, logrus.WarnLevel, key, args...)
 }
+
 func WarnF(format string, args ...any) {
+	if !strings.HasPrefix(format, "❗") {
+		format = "❗" + format
+	}
 	logWithFieldsFormat(Log, logrus.WarnLevel, format, args...)
 }
+
 func Debug(key string, args ...any) {
 	logWithFields(Log, logrus.DebugLevel, key, args...)
 }
+
 func DebugF(format string, args ...any) {
 	logWithFieldsFormat(Log, logrus.DebugLevel, format, args...)
 }

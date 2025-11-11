@@ -12,6 +12,42 @@ type User struct {
 
 func TestLogger(t *testing.T) {
 	SetCallerConfig(3, true)
+	SetColors(LogColorConfig{
+		// 调用时间 - 晨雾灰
+		Timestamp: func(text string) string {
+			return RGBForeground(130, 140, 150, text)
+		},
+		// 日志级别
+		LogLevel: func(level string) string {
+			colors := map[string]struct{ r, g, b int }{
+				"DBUG": {120, 170, 220}, // 晨空蓝
+				"INFO": {100, 180, 140}, // 嫩芽绿
+				"WARN": {220, 180, 100}, // 晨光黄
+				"ERRO": {220, 130, 130}, // 朝霞红
+			}
+			if color, exists := colors[level]; exists {
+				return RGBForeground(color.r, color.g, color.b, level)
+			}
+			return RGBForeground(150, 160, 170, level)
+		},
+		// 调用堆栈 - 薄暮紫
+		StackTrace: func(text string) string {
+			return RGBForeground(170, 150, 210, text)
+		},
+		// 日志消息key - 远山蓝
+		MessageKey: func(text string) string {
+			return RGBForeground(100, 150, 200, text)
+		},
+		// 日志其他字段key - 暖沙橙
+		FieldKey: func(text string) string {
+			return RGBForeground(200, 150, 100, text)
+		},
+		// 日志其他字段value - 湖水绿
+		FieldValue: func(text string) string {
+			return RGBForeground(90, 170, 160, text)
+		},
+	})
+	Set5()
 	// 测试带字段的日志✅
 	Info("用户登录", "用户ID", "12345", "IP", "192.168.1.1",
 		"struct", User{Name: "John", Age: 30},

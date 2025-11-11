@@ -571,3 +571,243 @@ func DebugF(format string, args ...any) {
 func RGBForeground(r, g, b int, text string) string {
 	return fmt.Sprintf("\033[38;2;%d;%d;%dm%s\033[0m", r, g, b, text)
 }
+
+// 现代专业风格
+func Set1() {
+	lc := LogColorConfig{
+		// 调用时间 - 深灰色，低调但不失可读性
+		Timestamp: func(text string) string {
+			return RGBForeground(120, 120, 120, text) // 更深的灰色
+		},
+		// 日志级别 - 更鲜明的颜色
+		LogLevel: func(level string) string {
+			colors := map[string]struct{ r, g, b int }{
+				"DBUG": {100, 143, 255}, // 更鲜艳的蓝色
+				"INFO": {72, 187, 120},  // 更饱和的绿色
+				"WARN": {255, 184, 77},  // 明亮的橙色
+				"ERRO": {255, 92, 92},   // 鲜艳的红色
+			}
+			if color, exists := colors[level]; exists {
+				return RGBForeground(color.r, color.g, color.b, level)
+			}
+			return RGBForeground(180, 180, 180, level)
+		},
+		// 调用堆栈 - 紫色调，更有科技感
+		StackTrace: func(text string) string {
+			return RGBForeground(162, 155, 254, text) // 现代紫
+		},
+		// 日志消息key - 深蓝色，更专业
+		MessageKey: func(text string) string {
+			return RGBForeground(66, 133, 244, text) // Google蓝
+		},
+		// 日志其他字段key - 暖色调
+		FieldKey: func(text string) string {
+			return RGBForeground(255, 112, 67, text) // 珊瑚橙
+		},
+		// 日志其他字段value - 清新的青色
+		FieldValue: func(text string) string {
+			return RGBForeground(38, 198, 218, text) // 亮青色
+		},
+	}
+	SetColors(lc)
+}
+
+// 深色主题优化
+func Set2() {
+	lc := LogColorConfig{
+		// 调用时间 - 中灰色，在深色背景上更清晰
+		Timestamp: func(text string) string {
+			return RGBForeground(170, 170, 170, text)
+		},
+		// 日志级别 - 高对比度颜色
+		LogLevel: func(level string) string {
+			colors := map[string]struct{ r, g, b int }{
+				"DBUG": {97, 175, 239},  // 亮蓝色
+				"INFO": {120, 222, 173}, // 薄荷绿
+				"WARN": {253, 203, 88},  // 金黄色
+				"ERRO": {255, 107, 107}, // 珊瑚红
+			}
+			if color, exists := colors[level]; exists {
+				return RGBForeground(color.r, color.g, color.b, level)
+			}
+			return RGBForeground(200, 200, 200, level)
+		},
+		// 调用堆栈 - 淡紫色
+		StackTrace: func(text string) string {
+			return RGBForeground(188, 163, 255, text)
+		},
+		// 日志消息key - 天蓝色
+		MessageKey: func(text string) string {
+			return RGBForeground(86, 182, 255, text)
+		},
+		// 日志其他字段key - 橙红色
+		FieldKey: func(text string) string {
+			return RGBForeground(255, 145, 77, text)
+		},
+		// 日志其他字段value - 青绿色
+		FieldValue: func(text string) string {
+			return RGBForeground(72, 219, 197, text)
+		},
+	}
+	SetColors(lc)
+}
+
+// 渐变和谐风格
+func Set3() {
+	lc := LogColorConfig{
+		// 调用时间 - 银灰色
+		Timestamp: func(text string) string {
+			return RGBForeground(160, 160, 160, text)
+		},
+		// 日志级别 - 渐变蓝色系
+		LogLevel: func(level string) string {
+			colors := map[string]struct{ r, g, b int }{
+				"DBUG": {116, 185, 255}, // 浅蓝
+				"INFO": {77, 208, 155},  // 青绿
+				"WARN": {255, 193, 86},  // 琥珀色
+				"ERRO": {255, 102, 102}, // 亮红
+			}
+			if color, exists := colors[level]; exists {
+				return RGBForeground(color.r, color.g, color.b, level)
+			}
+			return RGBForeground(190, 190, 190, level)
+		},
+		// 调用堆栈 - 紫蓝色
+		StackTrace: func(text string) string {
+			return RGBForeground(158, 148, 255, text)
+		},
+		// 日志消息key - 宝蓝色
+		MessageKey: func(text string) string {
+			return RGBForeground(74, 144, 255, text)
+		},
+		// 日志其他字段key - 橙黄色
+		FieldKey: func(text string) string {
+			return RGBForeground(255, 163, 68, text)
+		},
+		// 日志其他字段value - 碧绿色
+		FieldValue: func(text string) string {
+			return RGBForeground(56, 213, 188, text)
+		},
+	}
+	SetColors(lc)
+}
+
+// 高对比度专业版
+func Set4() {
+	lc := LogColorConfig{
+		// 调用时间 - 浅灰色
+		Timestamp: func(text string) string {
+			return RGBForeground(150, 150, 150, text)
+		},
+		// 日志级别 - 高饱和度
+		LogLevel: func(level string) string {
+			colors := map[string]struct{ r, g, b int }{
+				"DBUG": {65, 150, 255}, // 纯蓝
+				"INFO": {46, 204, 113}, // 纯绿
+				"WARN": {255, 159, 26}, // 纯橙
+				"ERRO": {255, 59, 59},  // 纯红
+			}
+			if color, exists := colors[level]; exists {
+				return RGBForeground(color.r, color.g, color.b, level)
+			}
+			return RGBForeground(180, 180, 180, level)
+		},
+		// 调用堆栈 - 亮紫色
+		StackTrace: func(text string) string {
+			return RGBForeground(175, 122, 255, text)
+		},
+		// 日志消息key - 深蓝色
+		MessageKey: func(text string) string {
+			return RGBForeground(52, 122, 235, text)
+		},
+		// 日志其他字段key - 鲜橙色
+		FieldKey: func(text string) string {
+			return RGBForeground(255, 132, 52, text)
+		},
+		// 日志其他字段value - 亮青色
+		FieldValue: func(text string) string {
+			return RGBForeground(45, 203, 203, text)
+		},
+	}
+	SetColors(lc)
+}
+
+// 霓虹未来 (高对比度)
+func Set5() {
+	lc := LogColorConfig{
+		// 调用时间 - 金属银
+		Timestamp: func(text string) string {
+			return RGBForeground(170, 190, 210, text)
+		},
+		// 日志级别
+		LogLevel: func(level string) string {
+			colors := map[string]struct{ r, g, b int }{
+				"DBUG": {0, 200, 255},  // 电光蓝
+				"INFO": {50, 255, 150}, // 霓虹绿
+				"WARN": {255, 220, 0},  // 荧光黄
+				"ERRO": {255, 50, 100}, // 赛博粉
+			}
+			if color, exists := colors[level]; exists {
+				return RGBForeground(color.r, color.g, color.b, level)
+			}
+			return RGBForeground(190, 200, 220, level)
+		},
+		// 调用堆栈 - 紫外光
+		StackTrace: func(text string) string {
+			return RGBForeground(180, 80, 255, text)
+		},
+		// 日志消息key - 数字蓝
+		MessageKey: func(text string) string {
+			return RGBForeground(0, 160, 255, text)
+		},
+		// 日志其他字段key - 信号橙
+		FieldKey: func(text string) string {
+			return RGBForeground(255, 120, 0, text)
+		},
+		// 日志其他字段value - 数据青
+		FieldValue: func(text string) string {
+			return RGBForeground(0, 220, 200, text)
+		},
+	}
+	SetColors(lc)
+}
+
+// 柔光晨雾 (浅色主题)
+func Set6() {
+	lc := LogColorConfig{
+		// 调用时间 - 晨雾灰
+		Timestamp: func(text string) string {
+			return RGBForeground(130, 140, 150, text)
+		},
+		// 日志级别
+		LogLevel: func(level string) string {
+			colors := map[string]struct{ r, g, b int }{
+				"DBUG": {120, 170, 220}, // 晨空蓝
+				"INFO": {100, 180, 140}, // 嫩芽绿
+				"WARN": {220, 180, 100}, // 晨光黄
+				"ERRO": {220, 130, 130}, // 朝霞红
+			}
+			if color, exists := colors[level]; exists {
+				return RGBForeground(color.r, color.g, color.b, level)
+			}
+			return RGBForeground(150, 160, 170, level)
+		},
+		// 调用堆栈 - 薄暮紫
+		StackTrace: func(text string) string {
+			return RGBForeground(170, 150, 210, text)
+		},
+		// 日志消息key - 远山蓝
+		MessageKey: func(text string) string {
+			return RGBForeground(100, 150, 200, text)
+		},
+		// 日志其他字段key - 暖沙橙
+		FieldKey: func(text string) string {
+			return RGBForeground(200, 150, 100, text)
+		},
+		// 日志其他字段value - 湖水绿
+		FieldValue: func(text string) string {
+			return RGBForeground(90, 170, 160, text)
+		},
+	}
+	SetColors(lc)
+}

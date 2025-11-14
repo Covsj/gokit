@@ -12,8 +12,41 @@ import (
 
 // ==================== 签名方法 ====================
 
-// SignHash 直接对哈希进行签名 输出31/32
-func (a *IAccount) SignHash(hash []byte) (string, error) {
+// SignMessageHash 用于消息哈希签名，不涉及交易，所以通常使用传统格式。
+func (a *IAccount) SignMessageHash(hash []byte) (string, error) {
+
+	if len(hash) != 32 {
+		return "", fmt.Errorf("哈希长度必须为32字节")
+	}
+
+	// 使用私钥签名
+	sig, err := crypto.Sign(hash, a.key)
+	if err != nil {
+		return "", fmt.Errorf("crypto.Sign失败: %w", err)
+	}
+
+	// 确保签名是65字节（以太坊标准）
+	if len(sig) != 65 {
+		return "", errors.New("签名长度无效")
+	}
+
+	// 调整v值以符合以太坊标准
+	v := int(sig[64])
+	switch v {
+	case 0, 1:
+		v += 27 // 0→27, 1→28 (EIP-155标准)
+	case 27, 28:
+		// 消息签名格式
+	default:
+		return "", errors.New("无效的v值")
+	}
+	sig[64] = byte(v)
+
+	return hexutil.Encode(sig), nil
+}
+
+// SignTransactionHash 用于交易哈希签名，包含链ID保护，防止跨链重放攻击。
+func (a *IAccount) SignTransactionHash(hash []byte) (string, error) {
 	if len(hash) != 32 {
 		return "", fmt.Errorf("哈希长度必须为32字节")
 	}
@@ -58,7 +91,7 @@ func (a *IAccount) SignPersonal(message []byte) (string, error) {
 	hash := crypto.Keccak256(prefixedMessage)
 
 	// 使用统一的签名方法
-	return a.SignHash(hash)
+	return a.SignMessageHash(hash)
 }
 
 // GetSignEIP712Hash 获取EIP712签名前哈希
@@ -130,7 +163,7 @@ func (a *IAccount) SignEIP712(domain apitypes.TypedDataDomain,
 	}
 
 	// 直接对哈希进行签名，不使用 SignPersonal
-	return a.SignHash(finalHash)
+	return a.SignMessageHash(finalHash)
 }
 
 // ==================== 签名验证 ====================

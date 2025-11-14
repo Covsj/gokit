@@ -12,7 +12,7 @@ import (
 
 // ==================== 签名方法 ====================
 
-// SignHash 直接对哈希进行签名
+// SignHash 直接对哈希进行签名 输出31/32
 func (a *IAccount) SignHash(hash []byte) (string, error) {
 	if len(hash) != 32 {
 		return "", fmt.Errorf("哈希长度必须为32字节")
@@ -33,9 +33,9 @@ func (a *IAccount) SignHash(hash []byte) (string, error) {
 	v := int(sig[64])
 	switch v {
 	case 0, 1:
-		v += 27 // 0/1 → 27/28 (legacy)
+		v += 31 // 0→31, 1→32 (EIP-155标准)
 	case 27, 28:
-		v += 4
+		v += 4 // 27→31, 28→32 (旧版转EIP-155)
 	default:
 		return "", errors.New("无效的v值")
 	}

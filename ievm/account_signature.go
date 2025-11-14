@@ -35,7 +35,7 @@ func (a *IAccount) SignHash(hash []byte) (string, error) {
 	case 0, 1:
 		v += 27 // 0/1 → 27/28 (legacy)
 	case 27, 28:
-		// 已经是正确的格式
+		v += 4
 	default:
 		return "", errors.New("无效的v值")
 	}

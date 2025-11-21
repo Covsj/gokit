@@ -12,7 +12,11 @@ import (
 // ExampleSmartGasUsage 展示智能 Gas 处理的使用方法
 func ExampleSmartGasUsage() {
 	// 创建账户
-	account, err := NewWithPrivateKey("0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", "https://eth-mainnet.g.alchemy.com/v2/test")
+	account, err := NewWithPrivateKey(
+		"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+		&RPCOptions{
+			RpcUrl: "https://eth-mainnet.g.alchemy.com/v2/test",
+		})
 	if err != nil {
 		fmt.Printf("创建账户失败: %v\n", err)
 		return

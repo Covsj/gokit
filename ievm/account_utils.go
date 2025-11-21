@@ -145,7 +145,7 @@ func (a *IAccount) GetAccountInfo() map[string]interface{} {
 	info["address"] = a.Address()
 	info["truncatedAddress"] = TruncateAddress(a.Address())
 	info["chainID"] = a.ChainID
-	info["rpc"] = a.RPC
+	info["rpcOpt"] = a.RpcOpt
 
 	// 获取余额
 	balance, err := a.GetETHBalance()

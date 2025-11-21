@@ -5,29 +5,124 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"net/http"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
 )
 
 // IAccount 简化账户：持有私钥与地址, 封装 go-ethereum 客户端，提供简洁易用的多链 EVM 能力
 type IAccount struct {
-	RPC          string
+	RpcOpt       *RPCOptions
 	ChainID      *big.Int
 	key          *ecdsa.PrivateKey
 	address      common.Address
 	EInnerClient *ethclient.Client
 }
 
+// RPCOptions RPC 连接配置选项
+// 使用示例：
+//
+//	// 方式1: 使用自定义头部（推荐用于 API Key 验证）
+//	opts := &RPCOptions{
+//	    RpcUrl: "https://eth-mainnet.g.alchemy.com/v2/your-api-key",
+//	    Headers: map[string]string{
+//	        "Authorization": "Bearer your-token",
+//	        "X-API-Key": "your-api-key",
+//	    },
+//	    Timeout: 60, // 60秒超时
+//	}
+//	account, err := NewWithPrivateKey(privateKey, opts)
+//
+//	// 方式2: 仅设置超时
+//	opts := &RPCOptions{
+//	    RpcUrl: "https://eth-mainnet.g.alchemy.com/v2/your-api-key",
+//	    Timeout: 120,
+//	}
+//	account, err := NewWithMnemonicIndex(mnemonic, 0, opts)
+//
+//	// 方式3: 使用完全自定义的 HTTP 客户端
+//	customClient := &http.Client{
+//	    Timeout: 90 * time.Second,
+//	    Transport: &customTransport{...},
+//	}
+//	opts := &RPCOptions{
+//	    RpcUrl: "https://eth-mainnet.g.alchemy.com/v2/your-api-key",
+//	    CustomHTTPClient: customClient,
+//	}
+//	account, err := NewWithPrivateKey(privateKey, opts)
+type RPCOptions struct {
+	RpcUrl string
+	// Headers 自定义 HTTP 请求头，用于 API Key 等验证
+	// 例如: map[string]string{"Authorization": "Bearer token", "X-API-Key": "your-key"}
+	Headers map[string]string
+
+	// Timeout 连接超时时间（秒），默认 30 秒
+	Timeout int
+
+	// CustomHTTPClient 自定义 HTTP 客户端，如果设置则忽略 Headers 和 Timeout
+	// 适用于需要完全控制 HTTP 客户端行为的场景
+	CustomHTTPClient *http.Client
+}
+
 // ==================== 账户创建和管理 ====================
 
+// dialRPCWithOptions 使用自定义选项创建 RPC 客户端
+func dialRPCWithOptions(ctx context.Context, opts *RPCOptions) (*ethclient.Client, error) {
+	if opts == nil || opts.RpcUrl == "" {
+		return nil, fmt.Errorf("RPC URL 不能为空")
+	}
+
+	var httpClient *http.Client
+
+	if opts.CustomHTTPClient != nil {
+		// 使用自定义 HTTP 客户端
+		httpClient = opts.CustomHTTPClient
+	} else {
+		// 创建默认 HTTP 客户端
+		timeout := 30 * time.Second
+		if opts.Timeout > 0 {
+			timeout = time.Duration(opts.Timeout) * time.Second
+		}
+
+		httpClient = &http.Client{
+			Timeout: timeout,
+		}
+	}
+
+	// 构建 DialOptions
+	var dialOpts []rpc.ClientOption
+
+	// 添加 HTTP 客户端选项
+	dialOpts = append(dialOpts, rpc.WithHTTPClient(httpClient))
+
+	// 添加自定义头部选项
+	if len(opts.Headers) > 0 {
+		for k, v := range opts.Headers {
+			dialOpts = append(dialOpts, rpc.WithHeader(k, v))
+		}
+	}
+
+	// 使用 DialOptions 创建 RPC 客户端（推荐方式，替代已弃用的 DialHTTPWithClient）
+	rpcClient, err := rpc.DialOptions(ctx, opts.RpcUrl, dialOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	// 创建 ethclient
+	return ethclient.NewClient(rpcClient), nil
+}
+
 // NewWithMnemonicIndex 使用助记词和账户索引创建账户，派生路径 m/44'/60'/0'/0/{index}
-func NewWithMnemonicIndex(mnemonic string, index int,
-	rpcURL string) (*IAccount, error) {
+// rpcURL: RPC 服务地址
+// opts: 可选的 RPC 配置选项，支持自定义 HTTP 头部、超时等
+func NewWithMnemonicIndex(mnemonic string, index int, opt *RPCOptions) (*IAccount, error) {
 	if mnemonic == "" {
 		return nil, fmt.Errorf("助记词不能为空")
 	}
@@ -72,7 +167,8 @@ func NewWithMnemonicIndex(mnemonic string, index int,
 	addr := crypto.PubkeyToAddress(priv.PublicKey)
 
 	ctx := context.Background()
-	eInnerClient, err := ethclient.DialContext(ctx, rpcURL)
+
+	eInnerClient, err := dialRPCWithOptions(ctx, opt)
 	if err != nil {
 		return nil, fmt.Errorf("连接 RPC 失败: %w", err)
 	}
@@ -85,13 +181,16 @@ func NewWithMnemonicIndex(mnemonic string, index int,
 		key:          priv,
 		address:      addr,
 		ChainID:      chainId,
-		RPC:          rpcURL,
+		RpcOpt:       opt,
 		EInnerClient: eInnerClient,
 	}, nil
 }
 
 // NewWithPrivateKey 从 0x 私钥创建账户
-func NewWithPrivateKey(hexKey string, rpcURL string) (*IAccount, error) {
+// hexKey: 十六进制私钥（可带或不带 0x 前缀）
+// rpcURL: RPC 服务地址
+// opts: 可选的 RPC 配置选项，支持自定义 HTTP 头部、超时等
+func NewWithPrivateKey(hexKey string, opt *RPCOptions) (*IAccount, error) {
 	if hexKey == "" {
 		return nil, fmt.Errorf("私钥不能为空")
 	}
@@ -104,7 +203,8 @@ func NewWithPrivateKey(hexKey string, rpcURL string) (*IAccount, error) {
 	}
 	addr := crypto.PubkeyToAddress(priv.PublicKey)
 	ctx := context.Background()
-	eInnerClient, err := ethclient.DialContext(ctx, rpcURL)
+
+	eInnerClient, err := dialRPCWithOptions(ctx, opt)
 	if err != nil {
 		return nil, fmt.Errorf("连接 RPC 失败: %w", err)
 	}
@@ -116,7 +216,7 @@ func NewWithPrivateKey(hexKey string, rpcURL string) (*IAccount, error) {
 		key:          priv,
 		address:      addr,
 		ChainID:      chainId,
-		RPC:          rpcURL,
+		RpcOpt:       opt,
 		EInnerClient: eInnerClient,
 	}, nil
 }

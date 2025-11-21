@@ -16,7 +16,9 @@ func TestNewWithMnemonicIndex(t *testing.T) {
 	}
 	ilog.Info("生成助记词成功", "助记词", mn)
 
-	acc, err := NewWithMnemonicIndex(mn, 4, "https://base.llamarpc.com")
+	acc, err := NewWithMnemonicIndex(mn, 4, &RPCOptions{
+		RpcUrl: "https://base.llamarpc.com",
+	})
 	if err != nil {
 		ilog.Error("生成客户端失败", "错误", err)
 		return
